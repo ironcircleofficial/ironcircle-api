@@ -1,24 +1,365 @@
-# This file is the entry point to configure your own services.
-# Files in the packages/ subdirectory configure your dependencies.
+# This file is the entry point to configure your own services for IronCircle.
+# Architecture: DDD + CQRS with Symfony Messenger
+# See: specification.MD for architectural constraints
 
-# Put parameters here that don't need to change on each machine where the app is deployed
-# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+  # Shared parameters
+  app.api.version: 'v1'
 
 services:
-    # default configuration for services in *this* file
-    _defaults:
-        autowire: true      # Automatically injects dependencies in your services.
-        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+  # Default configuration for all services
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    bind:
+      # MongoDB connection injection
+      $dm: '@doctrine_mongodb.odm.default_document_manager'
 
-    # makes classes in src/ available to be used as services
-    # this creates a service per class whose id is the fully-qualified class name
-    App\:
-        resource: '../src/'
-        exclude:
-            - '../src/DependencyInjection/'
-            - '../src/Entity/'
-            - '../src/Kernel.php'
+  # ────────────────────────────────────────────────────────────────────
+  # CORE INFRASTRUCTURE SERVICES
+  # ────────────────────────────────────────────────────────────────────
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
+  # Symfony Messenger: Command & Query Bus
+  # Commands: immutable, no return value
+  # Queries: immutable, return DTOs only
+  messenger.bus.default:
+    public: true
+
+  # ────────────────────────────────────────────────────────────────────
+  # AUTO-LOADING BY BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  # Each bounded context follows the standard module layout:
+  # <Context>/
+  #   ├── Domain/Model/
+  #   ├── Domain/Repository/ (interfaces only)
+  #   ├── Domain/Event/
+  #   ├── Domain/Exception/
+  #   ├── Application/Command/
+  #   ├── Application/CommandHandler/
+  #   ├── Application/Query/
+  #   ├── Application/QueryHandler/
+  #   ├── Application/DTO/
+  #   ├── Infrastructure/Persistence/ (concrete repositories)
+  #   ├── Infrastructure/ODM/ (MongoDB documents)
+  #   ├── Infrastructure/Repository/ (repository implementations)
+  #   └── UI/Http/
+  #       ├── Controller/
+  #       ├── Request/
+  #       ├── Transformer/
+  #       └── Voter/ (authorization)
+
+  # All App classes are services
+  App\:
+    resource: '../src/'
+    exclude:
+      - '../src/DependencyInjection/'
+      - '../src/Kernel.php'
+      # Explicitly exclude ODM documents - these are not services
+      - '../src/*/Infrastructure/ODM/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # AUTH BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  App\Auth\Application\CommandHandler\:
+    resource: '../src/Auth/Application/CommandHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Auth\Application\QueryHandler\:
+    resource: '../src/Auth/Application/QueryHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Auth\Infrastructure\Repository\:
+    resource: '../src/Auth/Infrastructure/Repository/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # USER BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  App\User\Application\CommandHandler\:
+    resource: '../src/User/Application/CommandHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\User\Application\QueryHandler\:
+    resource: '../src/User/Application/QueryHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\User\Infrastructure\Repository\:
+    resource: '../src/User/Infrastructure/Repository/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # CIRCLE BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  App\Circle\Application\CommandHandler\:
+    resource: '../src/Circle/Application/CommandHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Circle\Application\QueryHandler\:
+    resource: '../src/Circle/Application/QueryHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Circle\Infrastructure\Repository\:
+    resource: '../src/Circle/Infrastructure/Repository/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # POST BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  App\Post\Application\CommandHandler\:
+    resource: '../src/Post/Application/CommandHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Post\Application\QueryHandler\:
+    resource: '../src/Post/Application/QueryHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Post\Infrastructure\Repository\:
+    resource: '../src/Post/Infrastructure/Repository/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # COMMENT BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  App\Comment\Application\CommandHandler\:
+    resource: '../src/Comment/Application/CommandHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Comment\Application\QueryHandler\:
+    resource: '../src/Comment/Application/QueryHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Comment\Infrastructure\Repository\:
+    resource: '../src/Comment/Infrastructure/Repository/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # VOTE BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  App\Vote\Application\CommandHandler\:
+    resource: '../src/Vote/Application/CommandHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Vote\Application\QueryHandler\:
+    resource: '../src/Vote/Application/QueryHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Vote\Infrastructure\Repository\:
+    resource: '../src/Vote/Infrastructure/Repository/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # MODERATION BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  App\Moderation\Application\CommandHandler\:
+    resource: '../src/Moderation/Application/CommandHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Moderation\Application\QueryHandler\:
+    resource: '../src/Moderation/Application/QueryHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Moderation\Infrastructure\Repository\:
+    resource: '../src/Moderation/Infrastructure/Repository/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # FEED BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  App\Feed\Application\CommandHandler\:
+    resource: '../src/Feed/Application/CommandHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Feed\Application\QueryHandler\:
+    resource: '../src/Feed/Application/QueryHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Feed\Infrastructure\Repository\:
+    resource: '../src/Feed/Infrastructure/Repository/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # SEARCH BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  App\Search\Application\CommandHandler\:
+    resource: '../src/Search/Application/CommandHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Search\Application\QueryHandler\:
+    resource: '../src/Search/Application/QueryHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Search\Infrastructure\Repository\:
+    resource: '../src/Search/Infrastructure/Repository/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # AI BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  App\AI\Application\CommandHandler\:
+    resource: '../src/AI/Application/CommandHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\AI\Application\QueryHandler\:
+    resource: '../src/AI/Application/QueryHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\AI\Infrastructure\Repository\:
+    resource: '../src/AI/Infrastructure/Repository/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # ADMIN BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  App\Admin\Application\CommandHandler\:
+    resource: '../src/Admin/Application/CommandHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Admin\Application\QueryHandler\:
+    resource: '../src/Admin/Application/QueryHandler/'
+    tags:
+      - { name: messenger.message_handler, bus: messenger.bus.default }
+
+  App\Admin\Infrastructure\Repository\:
+    resource: '../src/Admin/Infrastructure/Repository/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # SHARED BOUNDED CONTEXT
+  # ────────────────────────────────────────────────────────────────────
+  App\Shared\Infrastructure\Validator\:
+    resource: '../src/Shared/Infrastructure/Validator/'
+
+  # ────────────────────────────────────────────────────────────────────
+  # CONTROLLERS (UI Layer)
+  # ────────────────────────────────────────────────────────────────────
+  # Controllers are kept minimal:
+  # 1. Validate authorization (Voters)
+  # 2. Map Requests to Commands/Queries
+  # 3. Dispatch via Messenger bus
+  # 4. Transform DTOs to HTTP responses
+
+  App\Auth\UI\Http\Controller\:
+    resource: '../src/Auth/UI/Http/Controller/'
+    tags:
+      - controller.service_arguments
+
+  App\User\UI\Http\Controller\:
+    resource: '../src/User/UI/Http/Controller/'
+    tags:
+      - controller.service_arguments
+
+  App\Circle\UI\Http\Controller\:
+    resource: '../src/Circle/UI/Http/Controller/'
+    tags:
+      - controller.service_arguments
+
+  App\Post\UI\Http\Controller\:
+    resource: '../src/Post/UI/Http/Controller/'
+    tags:
+      - controller.service_arguments
+
+  App\Comment\UI\Http\Controller\:
+    resource: '../src/Comment/UI/Http/Controller/'
+    tags:
+      - controller.service_arguments
+
+  App\Vote\UI\Http\Controller\:
+    resource: '../src/Vote/UI/Http/Controller/'
+    tags:
+      - controller.service_arguments
+
+  App\Moderation\UI\Http\Controller\:
+    resource: '../src/Moderation/UI/Http/Controller/'
+    tags:
+      - controller.service_arguments
+
+  App\Feed\UI\Http\Controller\:
+    resource: '../src/Feed/UI/Http/Controller/'
+    tags:
+      - controller.service_arguments
+
+  App\Search\UI\Http\Controller\:
+    resource: '../src/Search/UI/Http/Controller/'
+    tags:
+      - controller.service_arguments
+
+  App\AI\UI\Http\Controller\:
+    resource: '../src/AI/UI/Http/Controller/'
+    tags:
+      - controller.service_arguments
+
+  App\Admin\UI\Http\Controller\:
+    resource: '../src/Admin/UI/Http/Controller/'
+    tags:
+      - controller.service_arguments
+
+  # ────────────────────────────────────────────────────────────────────
+  # AUTHORIZATION VOTERS
+  # ────────────────────────────────────────────────────────────────────
+  # One voter per aggregate action
+  # Voters ONLY handle authorization, never business logic
+
+  App\Auth\UI\Http\Voter\:
+    resource: '../src/Auth/UI/Http/Voter/'
+    tags:
+      - security.voter
+
+  App\User\UI\Http\Voter\:
+    resource: '../src/User/UI/Http/Voter/'
+    tags:
+      - security.voter
+
+  App\Circle\UI\Http\Voter\:
+    resource: '../src/Circle/UI/Http/Voter/'
+    tags:
+      - security.voter
+
+  App\Post\UI\Http\Voter\:
+    resource: '../src/Post/UI/Http/Voter/'
+    tags:
+      - security.voter
+
+  App\Comment\UI\Http\Voter\:
+    resource: '../src/Comment/UI/Http/Voter/'
+    tags:
+      - security.voter
+
+  App\Vote\UI\Http\Voter\:
+    resource: '../src/Vote/UI/Http/Voter/'
+    tags:
+      - security.voter
+
+  App\Moderation\UI\Http\Voter\:
+    resource: '../src/Moderation/UI/Http/Voter/'
+    tags:
+      - security.voter
+
+  App\Feed\UI\Http\Voter\:
+    resource: '../src/Feed/UI/Http/Voter/'
+    tags:
+      - security.voter
+
+  App\Search\UI\Http\Voter\:
+    resource: '../src/Search/UI/Http/Voter/'
+    tags:
+      - security.voter
+
+  App\AI\UI\Http\Voter\:
+    resource: '../src/AI/UI/Http/Voter/'
+    tags:
+      - security.voter
+
+  App\Admin\UI\Http\Voter\:
+    resource: '../src/Admin/UI/Http/Voter/'
+    tags:
+      - security.voter

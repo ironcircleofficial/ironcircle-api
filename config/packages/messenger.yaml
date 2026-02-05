@@ -15,12 +15,92 @@ framework:
         default_bus: messenger.bus.default
 
         buses:
-            messenger.bus.default: []
+            messenger.bus.default:
+                middleware:
+                    - handle_message
 
         routing:
+            # Commands are dispatched to async handler
+            # Queries are synchronously handled and return DTOs
+            # Commands never return values
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async
             Symfony\Component\Notifier\Message\ChatMessage: async
             Symfony\Component\Notifier\Message\SmsMessage: async
 
-            # Route your messages to the transports
-            # 'App\Message\YourMessage': async
+            # ────────────────────────────────────────────────────────
+            # AUTH CONTEXT
+            # ────────────────────────────────────────────────────────
+            # Route Auth commands and queries
+            # 'App\Auth\Application\Command\*': async
+            # 'App\Auth\Application\Query\*': sync (default)
+
+            # ────────────────────────────────────────────────────────
+            # USER CONTEXT
+            # ────────────────────────────────────────────────────────
+            # Route User commands and queries
+            # 'App\User\Application\Command\*': async
+            # 'App\User\Application\Query\*': sync (default)
+
+            # ────────────────────────────────────────────────────────
+            # CIRCLE CONTEXT
+            # ────────────────────────────────────────────────────────
+            # Route Circle commands and queries
+            # 'App\Circle\Application\Command\*': async
+            # 'App\Circle\Application\Query\*': sync (default)
+
+            # ────────────────────────────────────────────────────────
+            # POST CONTEXT
+            # ────────────────────────────────────────────────────────
+            # Route Post commands and queries
+            # 'App\Post\Application\Command\*': async
+            # 'App\Post\Application\Query\*': sync (default)
+
+            # ────────────────────────────────────────────────────────
+            # COMMENT CONTEXT
+            # ────────────────────────────────────────────────────────
+            # Route Comment commands and queries
+            # 'App\Comment\Application\Command\*': async
+            # 'App\Comment\Application\Query\*': sync (default)
+
+            # ────────────────────────────────────────────────────────
+            # VOTE CONTEXT
+            # ────────────────────────────────────────────────────────
+            # Route Vote commands and queries
+            # 'App\Vote\Application\Command\*': async
+            # 'App\Vote\Application\Query\*': sync (default)
+
+            # ────────────────────────────────────────────────────────
+            # MODERATION CONTEXT
+            # ────────────────────────────────────────────────────────
+            # Route Moderation commands and queries
+            # 'App\Moderation\Application\Command\*': async
+            # 'App\Moderation\Application\Query\*': sync (default)
+
+            # ────────────────────────────────────────────────────────
+            # FEED CONTEXT
+            # ────────────────────────────────────────────────────────
+            # Route Feed commands and queries
+            # 'App\Feed\Application\Command\*': async
+            # 'App\Feed\Application\Query\*': sync (default)
+
+            # ────────────────────────────────────────────────────────
+            # SEARCH CONTEXT
+            # ────────────────────────────────────────────────────────
+            # Route Search commands and queries
+            # 'App\Search\Application\Command\*': async
+            # 'App\Search\Application\Query\*': sync (default)
+
+            # ────────────────────────────────────────────────────────
+            # AI CONTEXT
+            # ────────────────────────────────────────────────────────
+            # Route AI commands and queries
+            # AI commands MUST be async (never block main request)
+            # 'App\AI\Application\Command\*': async
+            # 'App\AI\Application\Query\*': sync (default)
+
+            # ────────────────────────────────────────────────────────
+            # ADMIN CONTEXT
+            # ────────────────────────────────────────────────────────
+            # Route Admin commands and queries
+            # 'App\Admin\Application\Command\*': async
+            # 'App\Admin\Application\Query\*': sync (default)
