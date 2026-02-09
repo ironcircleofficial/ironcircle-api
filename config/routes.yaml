@@ -3,3 +3,74 @@ controllers:
         path: ../src/Controller/
         namespace: App\Controller
     type: attribute
+
+# ────────────────────────────────────────────────────────────────────
+# BOUNDED CONTEXT ROUTES
+# ────────────────────────────────────────────────────────────────────
+# Each bounded context exposes HTTP endpoints via attribute routing
+
+auth_controllers:
+    resource:
+        path: ../src/Auth/UI/Http/Controller/
+        namespace: App\Auth\UI\Http\Controller
+    type: attribute
+
+user_controllers:
+    resource:
+        path: ../src/User/UI/Http/Controller/
+        namespace: App\User\UI\Http\Controller
+    type: attribute
+
+circle_controllers:
+    resource:
+        path: ../src/Circle/UI/Http/Controller/
+        namespace: App\Circle\UI\Http\Controller
+    type: attribute
+
+post_controllers:
+    resource:
+        path: ../src/Post/UI/Http/Controller/
+        namespace: App\Post\UI\Http\Controller
+    type: attribute
+
+comment_controllers:
+    resource:
+        path: ../src/Comment/UI/Http/Controller/
+        namespace: App\Comment\UI\Http\Controller
+    type: attribute
+
+vote_controllers:
+    resource:
+        path: ../src/Vote/UI/Http/Controller/
+        namespace: App\Vote\UI\Http\Controller
+    type: attribute
+
+moderation_controllers:
+    resource:
+        path: ../src/Moderation/UI/Http/Controller/
+        namespace: App\Moderation\UI\Http\Controller
+    type: attribute
+
+feed_controllers:
+    resource:
+        path: ../src/Feed/UI/Http/Controller/
+        namespace: App\Feed\UI\Http\Controller
+    type: attribute
+
+search_controllers:
+    resource:
+        path: ../src/Search/UI/Http/Controller/
+        namespace: App\Search\UI\Http\Controller
+    type: attribute
+
+ai_controllers:
+    resource:
+        path: ../src/AI/UI/Http/Controller/
+        namespace: App\AI\UI\Http\Controller
+    type: attribute
+
+admin_controllers:
+    resource:
+        path: ../src/Admin/UI/Http/Controller/
+        namespace: App\Admin\UI\Http\Controller
+    type: attribute
