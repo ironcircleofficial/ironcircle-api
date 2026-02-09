@@ -22,7 +22,10 @@ services:
   # Symfony Messenger: Command & Query Bus
   # Commands: immutable, no return value
   # Queries: immutable, return DTOs only
-  messenger.bus.default:
+  # Bus is configured in messenger.yaml
+
+  # Fractal Manager for API transformations
+  League\Fractal\Manager:
     public: true
 
   # ────────────────────────────────────────────────────────────────────
@@ -88,6 +91,10 @@ services:
 
   App\User\Infrastructure\Repository\:
     resource: '../src/User/Infrastructure/Repository/'
+
+  # Bind repository interfaces to implementations
+  App\User\Domain\Repository\UserRepositoryInterface:
+    alias: App\User\Infrastructure\Repository\UserRepository
 
   # ────────────────────────────────────────────────────────────────────
   # CIRCLE BOUNDED CONTEXT
