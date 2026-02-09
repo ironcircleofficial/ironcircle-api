@@ -10,9 +10,54 @@ doctrine_mongodb:
         default:
             auto_mapping: true
             mappings:
-                App:
-                    dir: '%kernel.project_dir%/src/Document'
-                    prefix: 'App\Document'
+                # User bounded context
+                User:
+                    type: attribute
+                    dir: '%kernel.project_dir%/src/User/Domain/Model'
+                    prefix: 'App\User\Domain\Model'
+                    is_bundle: false
+                
+                # Circle bounded context
+                Circle:
+                    type: attribute
+                    dir: '%kernel.project_dir%/src/Circle/Domain/Model'
+                    prefix: 'App\Circle\Domain\Model'
+                    is_bundle: false
+                
+                # Post bounded context
+                Post:
+                    type: attribute
+                    dir: '%kernel.project_dir%/src/Post/Domain/Model'
+                    prefix: 'App\Post\Domain\Model'
+                    is_bundle: false
+                
+                # Comment bounded context
+                Comment:
+                    type: attribute
+                    dir: '%kernel.project_dir%/src/Comment/Domain/Model'
+                    prefix: 'App\Comment\Domain\Model'
+                    is_bundle: false
+                
+                # Vote bounded context
+                Vote:
+                    type: attribute
+                    dir: '%kernel.project_dir%/src/Vote/Domain/Model'
+                    prefix: 'App\Vote\Domain\Model'
+                    is_bundle: false
+                
+                # Moderation bounded context
+                Moderation:
+                    type: attribute
+                    dir: '%kernel.project_dir%/src/Moderation/Domain/Model'
+                    prefix: 'App\Moderation\Domain\Model'
+                    is_bundle: false
+                
+                # AI bounded context
+                AI:
+                    type: attribute
+                    dir: '%kernel.project_dir%/src/AI/Domain/Model'
+                    prefix: 'App\AI\Domain\Model'
+                    is_bundle: false
 
 when@prod:
     doctrine_mongodb:
