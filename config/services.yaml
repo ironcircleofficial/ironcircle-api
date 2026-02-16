@@ -112,6 +112,10 @@ services:
   App\Circle\Infrastructure\Repository\:
     resource: '../src/Circle/Infrastructure/Repository/'
 
+  # Bind repository interfaces to implementations
+  App\Circle\Domain\Repository\CircleRepositoryInterface:
+    alias: App\Circle\Infrastructure\Repository\CircleRepository
+
   # ────────────────────────────────────────────────────────────────────
   # POST BOUNDED CONTEXT
   # ────────────────────────────────────────────────────────────────────
