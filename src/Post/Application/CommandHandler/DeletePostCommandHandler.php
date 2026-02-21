@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Post\Application\CommandHandler;
 
 use App\Circle\Domain\Repository\CircleRepositoryInterface;
+use App\Comment\Domain\Repository\CommentRepositoryInterface;
 use App\Post\Application\Command\DeletePostCommand;
 use App\Post\Domain\Exception\PostNotFoundException;
 use App\Post\Domain\Exception\UnauthorizedPostAccessException;
@@ -16,7 +17,8 @@ final readonly class DeletePostCommandHandler
 {
     public function __construct(
         private PostRepositoryInterface $postRepository,
-        private CircleRepositoryInterface $circleRepository
+        private CircleRepositoryInterface $circleRepository,
+        private CommentRepositoryInterface $commentRepository
     ) {
     }
 
@@ -34,6 +36,7 @@ final readonly class DeletePostCommandHandler
             throw UnauthorizedPostAccessException::notAuthor();
         }
 
+        $this->commentRepository->deleteByPostId($command->postId);
         $this->postRepository->delete($post);
     }
 }
