@@ -8,9 +8,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 final readonly class UpdatePostRequest
 {
-    /**
-     * @param array<string> $imageUrls
-     */
     public function __construct(
         #[Assert\NotBlank(message: 'Title must not be empty')]
         #[Assert\Length(
@@ -23,10 +20,7 @@ final readonly class UpdatePostRequest
 
         #[Assert\NotBlank(message: 'Content must not be empty')]
         #[Assert\Length(min: 10, minMessage: 'Content must be at least 10 characters')]
-        public string $content,
-
-        #[Assert\All([new Assert\Type('string')])]
-        public array $imageUrls = []
+        public string $content
     ) {
     }
 }

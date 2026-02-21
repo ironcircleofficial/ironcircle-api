@@ -34,7 +34,7 @@ final readonly class UpdatePostCommandHandler
             throw UnauthorizedPostAccessException::notAuthor();
         }
 
-        $post->updateContent($command->title, $command->content, $command->imageUrls);
+        $post->updateContent($command->title, $command->content);
         $this->postRepository->save($post);
     }
 }

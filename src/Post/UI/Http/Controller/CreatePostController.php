@@ -77,7 +77,6 @@ final class CreatePostController extends AbstractController
             authorId: $userId,
             title: $request->title,
             content: $request->content,
-            imageUrls: $request->imageUrls,
             aiSummaryEnabled: $request->aiSummaryEnabled
         );
 

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Post\Application\QueryHandler;
 
+use App\Post\Application\DTO\PostAttachmentDTO;
 use App\Post\Application\DTO\PostDTO;
 use App\Post\Application\DTO\PostListDTO;
 use App\Post\Application\Query\ListPostsByCircleQuery;
+use App\Post\Domain\Repository\PostAttachmentRepositoryInterface;
 use App\Post\Domain\Repository\PostRepositoryInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -14,7 +16,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class ListPostsByCircleQueryHandler
 {
     public function __construct(
-        private PostRepositoryInterface $postRepository
+        private PostRepositoryInterface $postRepository,
+        private PostAttachmentRepositoryInterface $attachmentRepository
     ) {
     }
 
@@ -23,6 +26,23 @@ final readonly class ListPostsByCircleQueryHandler
         $posts = $this->postRepository->findByCircle($query->circleId, $query->limit, $query->offset);
         $total = $this->postRepository->countByCircle($query->circleId);
 
+        $postIds = array_map(fn($post) => $post->getId(), $posts);
+        $allAttachments = $this->attachmentRepository->findByPostIds($postIds);
+
+        $attachmentsByPost = [];
+        foreach ($allAttachments as $attachment) {
+            $attachmentsByPost[$attachment->getPostId()][] = new PostAttachmentDTO(
+                id: $attachment->getId(),
+                postId: $attachment->getPostId(),
+                authorId: $attachment->getAuthorId(),
+                originalFilename: $attachment->getOriginalFilename(),
+                storedFilename: $attachment->getStoredFilename(),
+                mimeType: $attachment->getMimeType(),
+                size: $attachment->getSize(),
+                uploadedAt: $attachment->getUploadedAt()
+            );
+        }
+
         $postDTOs = array_map(
             fn($post) => new PostDTO(
                 id: $post->getId(),
@@ -30,10 +50,10 @@ final readonly class ListPostsByCircleQueryHandler
                 authorId: $post->getAuthorId(),
                 title: $post->getTitle(),
                 content: $post->getContent(),
-                imageUrls: $post->getImageUrls(),
                 aiSummaryEnabled: $post->isAiSummaryEnabled(),
                 createdAt: $post->getCreatedAt(),
-                updatedAt: $post->getUpdatedAt()
+                updatedAt: $post->getUpdatedAt(),
+                attachments: $attachmentsByPost[$post->getId()] ?? []
             ),
             $posts
         );

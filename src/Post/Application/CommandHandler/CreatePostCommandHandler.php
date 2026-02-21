@@ -24,7 +24,6 @@ final readonly class CreatePostCommandHandler
             authorId: $command->authorId,
             title: $command->title,
             content: $command->content,
-            imageUrls: $command->imageUrls,
             aiSummaryEnabled: $command->aiSummaryEnabled
         );
 

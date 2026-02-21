@@ -9,7 +9,7 @@ use DateTimeImmutable;
 final readonly class PostDTO
 {
     /**
-     * @param array<string> $imageUrls
+     * @param array<PostAttachmentDTO> $attachments
      */
     public function __construct(
         public string $id,
@@ -17,10 +17,10 @@ final readonly class PostDTO
         public string $authorId,
         public string $title,
         public string $content,
-        public array $imageUrls,
         public bool $aiSummaryEnabled,
         public DateTimeImmutable $createdAt,
-        public DateTimeImmutable $updatedAt
+        public DateTimeImmutable $updatedAt,
+        public array $attachments = []
     ) {
     }
 }

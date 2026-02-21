@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Post\UI\Http\Transformer;
 
+use App\Post\Application\DTO\PostAttachmentDTO;
 use App\Post\Application\DTO\PostDTO;
 use App\Post\Application\DTO\PostListDTO;
 use League\Fractal\TransformerAbstract;
@@ -23,8 +24,17 @@ final class PostListTransformer extends TransformerAbstract
                     'authorId' => $dto->authorId,
                     'title' => $dto->title,
                     'content' => $dto->content,
-                    'imageUrls' => $dto->imageUrls,
                     'aiSummaryEnabled' => $dto->aiSummaryEnabled,
+                    'attachments' => array_map(
+                        fn(PostAttachmentDTO $attachment) => [
+                            'id' => $attachment->id,
+                            'originalFilename' => $attachment->originalFilename,
+                            'mimeType' => $attachment->mimeType,
+                            'size' => $attachment->size,
+                            'uploadedAt' => $attachment->uploadedAt->format(\DateTimeInterface::ATOM),
+                        ],
+                        $dto->attachments
+                    ),
                     'createdAt' => $dto->createdAt->format(\DateTimeInterface::ATOM),
                     'updatedAt' => $dto->updatedAt->format(\DateTimeInterface::ATOM),
                 ],

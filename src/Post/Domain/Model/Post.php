@@ -29,12 +29,6 @@ class Post
     #[MongoDB\Field(type: 'string')]
     private string $content;
 
-    /**
-     * @var array<string>
-     */
-    #[MongoDB\Field(type: 'collection')]
-    private array $imageUrls;
-
     #[MongoDB\Field(type: 'bool')]
     private bool $aiSummaryEnabled;
 
@@ -44,22 +38,17 @@ class Post
     #[MongoDB\Field(type: 'date_immutable')]
     private DateTimeImmutable $updatedAt;
 
-    /**
-     * @param array<string> $imageUrls
-     */
     public function __construct(
         string $circleId,
         string $authorId,
         string $title,
         string $content,
-        array $imageUrls = [],
         bool $aiSummaryEnabled = false
     ) {
         $this->circleId = $circleId;
         $this->authorId = $authorId;
         $this->title = $title;
         $this->content = $content;
-        $this->imageUrls = $imageUrls;
         $this->aiSummaryEnabled = $aiSummaryEnabled;
         $this->createdAt = new DateTimeImmutable();
         $this->updatedAt = new DateTimeImmutable();
@@ -90,14 +79,6 @@ class Post
         return $this->content;
     }
 
-    /**
-     * @return array<string>
-     */
-    public function getImageUrls(): array
-    {
-        return $this->imageUrls;
-    }
-
     public function isAiSummaryEnabled(): bool
     {
         return $this->aiSummaryEnabled;
@@ -113,14 +94,10 @@ class Post
         return $this->updatedAt;
     }
 
-    /**
-     * @param array<string> $imageUrls
-     */
-    public function updateContent(string $title, string $content, array $imageUrls): void
+    public function updateContent(string $title, string $content): void
     {
         $this->title = $title;
         $this->content = $content;
-        $this->imageUrls = $imageUrls;
         $this->updatedAt = new DateTimeImmutable();
     }
 

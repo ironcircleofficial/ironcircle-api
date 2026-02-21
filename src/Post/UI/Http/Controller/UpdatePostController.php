@@ -79,8 +79,7 @@ final class UpdatePostController extends AbstractController
                 postId: $id,
                 updatedBy: $userId,
                 title: $request->title,
-                content: $request->content,
-                imageUrls: $request->imageUrls
+                content: $request->content
             );
 
             $this->messageBus->dispatch($command);
