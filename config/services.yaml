@@ -132,6 +132,10 @@ services:
   App\Post\Infrastructure\Repository\:
     resource: '../src/Post/Infrastructure/Repository/'
 
+  # Bind repository interfaces to implementations
+  App\Post\Domain\Repository\PostRepositoryInterface:
+    alias: App\Post\Infrastructure\Repository\PostRepository
+
   # ────────────────────────────────────────────────────────────────────
   # COMMENT BOUNDED CONTEXT
   # ────────────────────────────────────────────────────────────────────
