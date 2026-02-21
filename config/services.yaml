@@ -155,6 +155,10 @@ services:
   App\Comment\Infrastructure\Repository\:
     resource: '../src/Comment/Infrastructure/Repository/'
 
+  # Bind repository interfaces to implementations
+  App\Comment\Domain\Repository\CommentRepositoryInterface:
+    alias: App\Comment\Infrastructure\Repository\CommentRepository
+
   # ────────────────────────────────────────────────────────────────────
   # VOTE BOUNDED CONTEXT
   # ────────────────────────────────────────────────────────────────────
