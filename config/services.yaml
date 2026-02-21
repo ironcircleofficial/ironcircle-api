@@ -136,6 +136,9 @@ services:
   App\Post\Domain\Repository\PostRepositoryInterface:
     alias: App\Post\Infrastructure\Repository\PostRepository
 
+  App\Post\Domain\Repository\PostAttachmentRepositoryInterface:
+    alias: App\Post\Infrastructure\Repository\PostAttachmentRepository
+
   # ────────────────────────────────────────────────────────────────────
   # COMMENT BOUNDED CONTEXT
   # ────────────────────────────────────────────────────────────────────
@@ -253,6 +256,14 @@ services:
   # ────────────────────────────────────────────────────────────────────
   App\Shared\Infrastructure\Validator\:
     resource: '../src/Shared/Infrastructure/Validator/'
+
+  # File Storage Service
+  App\Shared\Application\Service\FileStorageInterface:
+    alias: App\Shared\Infrastructure\Storage\LocalFileStorage
+
+  App\Shared\Infrastructure\Storage\LocalFileStorage:
+    arguments:
+      $projectDir: '%kernel.project_dir%'
 
   # ────────────────────────────────────────────────────────────────────
   # CONTROLLERS (UI Layer)
