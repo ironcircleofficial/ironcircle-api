@@ -175,6 +175,10 @@ services:
   App\Vote\Infrastructure\Repository\:
     resource: '../src/Vote/Infrastructure/Repository/'
 
+  # Bind repository interfaces to implementations
+  App\Vote\Domain\Repository\VoteRepositoryInterface:
+    alias: App\Vote\Infrastructure\Repository\VoteRepository
+
   # ────────────────────────────────────────────────────────────────────
   # MODERATION BOUNDED CONTEXT
   # ────────────────────────────────────────────────────────────────────
