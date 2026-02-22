@@ -57,10 +57,13 @@ final class ListCirclesController extends AbstractController
 
             $circleListDTO = $handledStamp->getResult();
             $resource = new Item($circleListDTO, $this->circleListTransformer, 'circles');
-            $transformedList = $this->fractal->createData($resource)->toArray();
+            $data = $this->fractal->createData($resource)->toArray()['data'];
 
             return new JsonResponse(
-                $transformedList['data'],
+                [
+                    'circles'    => $data['circles']['data'] ?? [],
+                    'pagination' => $data['pagination'],
+                ],
                 Response::HTTP_OK
             );
         } catch (\Exception $e) {

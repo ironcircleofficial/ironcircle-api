@@ -70,10 +70,13 @@ final class ListPostsByCircleController extends AbstractController
 
             $postListDTO = $handledStamp->getResult();
             $resource = new Item($postListDTO, $this->postListTransformer, 'posts');
-            $transformed = $this->fractal->createData($resource)->toArray();
+            $data = $this->fractal->createData($resource)->toArray()['data'];
 
             return new JsonResponse(
-                $transformed['data'],
+                [
+                    'posts'      => $data['posts']['data'] ?? [],
+                    'pagination' => $data['pagination'],
+                ],
                 Response::HTTP_OK
             );
         } catch (HandlerFailedException $e) {

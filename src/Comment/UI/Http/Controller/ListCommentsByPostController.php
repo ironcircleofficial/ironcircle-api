@@ -81,10 +81,13 @@ final class ListCommentsByPostController extends AbstractController
 
             $commentListDTO = $handledStamp->getResult();
             $resource = new Item($commentListDTO, $this->commentListTransformer, 'comments');
-            $transformed = $this->fractal->createData($resource)->toArray();
+            $data = $this->fractal->createData($resource)->toArray()['data'];
 
             return new JsonResponse(
-                $transformed['data'],
+                [
+                    'comments'   => $data['comments']['data'] ?? [],
+                    'pagination' => $data['pagination'],
+                ],
                 Response::HTTP_OK
             );
         } catch (HandlerFailedException) {

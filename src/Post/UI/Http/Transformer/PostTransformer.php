@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Post\UI\Http\Transformer;
 
-use App\Post\Application\DTO\PostAttachmentDTO;
 use App\Post\Application\DTO\PostDTO;
+use League\Fractal\Resource\Collection;
 use League\Fractal\TransformerAbstract;
 
 final class PostTransformer extends TransformerAbstract
 {
+    protected array $defaultIncludes = ['attachments'];
+
     /**
      * @return array<string, mixed>
      */
@@ -22,18 +24,13 @@ final class PostTransformer extends TransformerAbstract
             'title' => $post->title,
             'content' => $post->content,
             'aiSummaryEnabled' => $post->aiSummaryEnabled,
-            'attachments' => array_map(
-                fn(PostAttachmentDTO $attachment) => [
-                    'id' => $attachment->id,
-                    'originalFilename' => $attachment->originalFilename,
-                    'mimeType' => $attachment->mimeType,
-                    'size' => $attachment->size,
-                    'uploadedAt' => $attachment->uploadedAt->format(\DateTimeInterface::ATOM),
-                ],
-                $post->attachments
-            ),
             'createdAt' => $post->createdAt->format(\DateTimeInterface::ATOM),
             'updatedAt' => $post->updatedAt->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    public function includeAttachments(PostDTO $post): Collection
+    {
+        return $this->collection($post->attachments, new PostAttachmentTransformer());
     }
 }
