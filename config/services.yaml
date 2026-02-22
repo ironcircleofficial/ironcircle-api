@@ -195,6 +195,10 @@ services:
   App\Moderation\Infrastructure\Repository\:
     resource: '../src/Moderation/Infrastructure/Repository/'
 
+  # Bind repository interface to implementation
+  App\Moderation\Domain\Repository\FlagRepositoryInterface:
+    alias: App\Moderation\Infrastructure\Repository\FlagRepository
+
   # ────────────────────────────────────────────────────────────────────
   # FEED BOUNDED CONTEXT
   # ────────────────────────────────────────────────────────────────────
