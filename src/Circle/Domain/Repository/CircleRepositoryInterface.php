@@ -43,5 +43,15 @@ interface CircleRepositoryInterface
 
     public function countPublic(): int;
 
+    /**
+     * @return array<string>
+     */
+    public function findPublicCircleIds(): array;
+
+    /**
+     * @return array<string>
+     */
+    public function findCircleIdsByCreatorOrModerator(string $userId): array;
+
     public function delete(Circle $circle): void;
 }

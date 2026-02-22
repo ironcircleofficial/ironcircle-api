@@ -52,6 +52,35 @@ final class PostRepository implements PostRepositoryInterface
             ->execute();
     }
 
+    public function findByCircleIds(array $circleIds, int $limit = 20, int $offset = 0): array
+    {
+        if (empty($circleIds)) {
+            return [];
+        }
+
+        return $this->repository->createQueryBuilder()
+            ->field('circleId')->in($circleIds)
+            ->sort('createdAt', 'DESC')
+            ->limit($limit)
+            ->skip($offset)
+            ->getQuery()
+            ->execute()
+            ->toArray();
+    }
+
+    public function countByCircleIds(array $circleIds): int
+    {
+        if (empty($circleIds)) {
+            return 0;
+        }
+
+        return $this->repository->createQueryBuilder()
+            ->field('circleId')->in($circleIds)
+            ->count()
+            ->getQuery()
+            ->execute();
+    }
+
     public function delete(Post $post): void
     {
         $this->documentManager->remove($post);

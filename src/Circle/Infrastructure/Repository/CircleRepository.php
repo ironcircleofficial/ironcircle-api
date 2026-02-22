@@ -92,6 +92,33 @@ final class CircleRepository implements CircleRepositoryInterface
             ->execute();
     }
 
+    public function findPublicCircleIds(): array
+    {
+        $circles = $this->repository->createQueryBuilder()
+            ->field('visibility')->equals('public')
+            ->select('_id')
+            ->getQuery()
+            ->execute();
+
+        return array_map(fn(Circle $circle) => $circle->getId(), $circles->toArray());
+    }
+
+    public function findCircleIdsByCreatorOrModerator(string $userId): array
+    {
+        $circles = $this->repository->createQueryBuilder()
+            ->addOr(
+                $this->repository->createQueryBuilder()->field('creatorId')->equals($userId)->getQuery()->getQuery()['query']
+            )
+            ->addOr(
+                $this->repository->createQueryBuilder()->field('moderatorIds')->equals($userId)->getQuery()->getQuery()['query']
+            )
+            ->select('_id')
+            ->getQuery()
+            ->execute();
+
+        return array_map(fn(Circle $circle) => $circle->getId(), $circles->toArray());
+    }
+
     public function delete(Circle $circle): void
     {
         $this->documentManager->remove($circle);

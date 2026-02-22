@@ -21,5 +21,18 @@ interface PostRepositoryInterface
 
     public function countByCircle(string $circleId): int;
 
+    /**
+     * @param array<string> $circleIds
+     * @param int<1, max> $limit
+     * @param int<0, max> $offset
+     * @return array<Post>
+     */
+    public function findByCircleIds(array $circleIds, int $limit = 20, int $offset = 0): array;
+
+    /**
+     * @param array<string> $circleIds
+     */
+    public function countByCircleIds(array $circleIds): int;
+
     public function delete(Post $post): void;
 }
