@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Vote\Domain\Model;
 
+use App\Vote\Domain\Exception\InvalidVoteValueException;
 use DateTimeImmutable;
 use Doctrine\ODM\MongoDB\Mapping\Annotations as MongoDB;
 
@@ -31,12 +32,17 @@ class Vote
     #[MongoDB\Field(type: 'date_immutable')]
     private readonly DateTimeImmutable $createdAt;
 
+    private const VALID_TARGET_TYPES = ['post', 'comment'];
+
     public function __construct(
         string $userId,
         string $targetType,
         string $targetId,
         int $value
     ) {
+        self::assertValidTargetType($targetType);
+        self::assertValidValue($value);
+
         $this->userId = $userId;
         $this->targetType = $targetType;
         $this->targetId = $targetId;
@@ -76,6 +82,7 @@ class Vote
 
     public function changeValue(int $value): void
     {
+        self::assertValidValue($value);
         $this->value = $value;
     }
 
@@ -97,5 +104,21 @@ class Vote
     public function isForComment(): bool
     {
         return $this->targetType === 'comment';
+    }
+
+    private static function assertValidValue(int $value): void
+    {
+        if ($value !== 1 && $value !== -1) {
+            throw InvalidVoteValueException::withValue($value);
+        }
+    }
+
+    private static function assertValidTargetType(string $targetType): void
+    {
+        if (!in_array($targetType, self::VALID_TARGET_TYPES, true)) {
+            throw new \InvalidArgumentException(
+                sprintf('Target type "%s" is invalid. Must be one of: %s', $targetType, implode(', ', self::VALID_TARGET_TYPES))
+            );
+        }
     }
 }
