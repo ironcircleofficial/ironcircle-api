@@ -86,4 +86,47 @@ final class PostRepository implements PostRepositoryInterface
         $this->documentManager->remove($post);
         $this->documentManager->flush();
     }
+
+    public function searchByQuery(string $query, array $accessibleCircleIds, int $limit = 20, int $offset = 0): array
+    {
+        if (empty($accessibleCircleIds)) {
+            return [];
+        }
+
+        $qb = $this->repository->createQueryBuilder();
+        $regex = new \MongoDB\BSON\Regex(preg_quote($query, '/'), 'i');
+
+        $qb->addOr(
+            $qb->expr()->field('title')->equals($regex),
+            $qb->expr()->field('content')->equals($regex)
+        );
+
+        $qb->field('circleId')->in($accessibleCircleIds);
+
+        return $qb->sort('createdAt', 'DESC')
+            ->limit($limit)
+            ->skip($offset)
+            ->getQuery()
+            ->execute()
+            ->toArray();
+    }
+
+    public function countSearchByQuery(string $query, array $accessibleCircleIds): int
+    {
+        if (empty($accessibleCircleIds)) {
+            return 0;
+        }
+
+        $qb = $this->repository->createQueryBuilder();
+        $regex = new \MongoDB\BSON\Regex(preg_quote($query, '/'), 'i');
+
+        $qb->addOr(
+            $qb->expr()->field('title')->equals($regex),
+            $qb->expr()->field('content')->equals($regex)
+        );
+
+        $qb->field('circleId')->in($accessibleCircleIds);
+
+        return (int) $qb->count()->getQuery()->execute();
+    }
 }

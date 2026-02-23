@@ -124,4 +124,63 @@ final class CircleRepository implements CircleRepositoryInterface
         $this->documentManager->remove($circle);
         $this->documentManager->flush();
     }
+
+    public function searchByQuery(string $query, ?string $userId = null, int $limit = 20, int $offset = 0): array
+    {
+        $qb = $this->repository->createQueryBuilder();
+        $regex = new \MongoDB\BSON\Regex(preg_quote($query, '/'), 'i');
+
+        $textMatch = $qb->expr()->addOr(
+            $qb->expr()->field('name')->equals($regex),
+            $qb->expr()->field('description')->equals($regex)
+        );
+
+        if ($userId === null) {
+            $qb->addAnd(
+                $textMatch,
+                $qb->expr()->field('visibility')->equals('public')
+            );
+        } else {
+            $accessMatch = $qb->expr()->addOr(
+                $qb->expr()->field('visibility')->equals('public'),
+                $qb->expr()->field('creatorId')->equals($userId),
+                $qb->expr()->field('moderatorIds')->in([$userId])
+            );
+            $qb->addAnd($textMatch, $accessMatch);
+        }
+
+        return $qb->sort('createdAt', 'DESC')
+            ->limit($limit)
+            ->skip($offset)
+            ->getQuery()
+            ->execute()
+            ->toArray();
+    }
+
+    public function countSearchByQuery(string $query, ?string $userId = null): int
+    {
+        $qb = $this->repository->createQueryBuilder();
+        $regex = new \MongoDB\BSON\Regex(preg_quote($query, '/'), 'i');
+
+        $textMatch = $qb->expr()->addOr(
+            $qb->expr()->field('name')->equals($regex),
+            $qb->expr()->field('description')->equals($regex)
+        );
+
+        if ($userId === null) {
+            $qb->addAnd(
+                $textMatch,
+                $qb->expr()->field('visibility')->equals('public')
+            );
+        } else {
+            $accessMatch = $qb->expr()->addOr(
+                $qb->expr()->field('visibility')->equals('public'),
+                $qb->expr()->field('creatorId')->equals($userId),
+                $qb->expr()->field('moderatorIds')->in([$userId])
+            );
+            $qb->addAnd($textMatch, $accessMatch);
+        }
+
+        return (int) $qb->count()->getQuery()->execute();
+    }
 }

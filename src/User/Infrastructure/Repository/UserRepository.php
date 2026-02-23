@@ -49,4 +49,29 @@ final class UserRepository implements UserRepositoryInterface
     {
         return $this->repository->findOneBy(['email' => $email]) !== null;
     }
+
+    public function searchByUsername(string $query, int $limit = 20, int $offset = 0): array
+    {
+        $regex = new \MongoDB\BSON\Regex(preg_quote($query, '/'), 'i');
+
+        return $this->repository->createQueryBuilder()
+            ->field('username')->equals($regex)
+            ->sort('username', 'ASC')
+            ->limit($limit)
+            ->skip($offset)
+            ->getQuery()
+            ->execute()
+            ->toArray();
+    }
+
+    public function countSearchByUsername(string $query): int
+    {
+        $regex = new \MongoDB\BSON\Regex(preg_quote($query, '/'), 'i');
+
+        return (int) $this->repository->createQueryBuilder()
+            ->field('username')->equals($regex)
+            ->count()
+            ->getQuery()
+            ->execute();
+    }
 }
