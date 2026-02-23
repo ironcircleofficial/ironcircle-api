@@ -247,6 +247,19 @@ services:
   App\AI\Infrastructure\Repository\:
     resource: '../src/AI/Infrastructure/Repository/'
 
+  # Bind repository interface to implementation
+  App\AI\Domain\Repository\AISummaryRepositoryInterface:
+    alias: App\AI\Infrastructure\Repository\AISummaryRepository
+
+  # AI Summary Generator Service
+  App\AI\Application\Service\SummaryGeneratorInterface:
+    alias: App\AI\Infrastructure\Client\HuggingFaceSummaryGenerator
+
+  App\AI\Infrastructure\Client\HuggingFaceSummaryGenerator:
+    arguments:
+      $apiToken: '%env(HUGGINGFACE_API_TOKEN)%'
+      $model: '%env(HUGGINGFACE_MODEL)%'
+
   # ────────────────────────────────────────────────────────────────────
   # ADMIN BOUNDED CONTEXT
   # ────────────────────────────────────────────────────────────────────
