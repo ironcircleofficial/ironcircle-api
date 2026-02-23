@@ -54,4 +54,15 @@ interface CircleRepositoryInterface
     public function findCircleIdsByCreatorOrModerator(string $userId): array;
 
     public function delete(Circle $circle): void;
+
+    /**
+     * Searches circles by name or description.
+     * Pass null $userId for unauthenticated searches (returns only public circles).
+     * Pass a $userId to also include private circles the user can access (creator/moderator).
+     *
+     * @return array<Circle>
+     */
+    public function searchByQuery(string $query, ?string $userId = null, int $limit = 20, int $offset = 0): array;
+
+    public function countSearchByQuery(string $query, ?string $userId = null): int;
 }

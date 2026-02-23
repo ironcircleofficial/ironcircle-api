@@ -35,4 +35,15 @@ interface PostRepositoryInterface
     public function countByCircleIds(array $circleIds): int;
 
     public function delete(Post $post): void;
+
+    /**
+     * @param array<string> $accessibleCircleIds
+     * @return array<Post>
+     */
+    public function searchByQuery(string $query, array $accessibleCircleIds, int $limit = 20, int $offset = 0): array;
+
+    /**
+     * @param array<string> $accessibleCircleIds
+     */
+    public function countSearchByQuery(string $query, array $accessibleCircleIds): int;
 }
