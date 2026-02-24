@@ -26,4 +26,13 @@ interface UserRepositoryInterface
     public function searchByUsername(string $query, int $limit = 20, int $offset = 0): array;
 
     public function countSearchByUsername(string $query): int;
+
+    /**
+     * @return array<User>
+     */
+    public function findAll(int $limit = 20, int $offset = 0): array;
+
+    public function countAll(): int;
+
+    public function delete(User $user): void;
 }

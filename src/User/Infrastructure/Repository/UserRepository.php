@@ -74,4 +74,23 @@ final class UserRepository implements UserRepositoryInterface
             ->getQuery()
             ->execute();
     }
+
+    public function findAll(int $limit = 20, int $offset = 0): array
+    {
+        return $this->repository->findBy([], ['createdAt' => 'DESC'], $limit, $offset);
+    }
+
+    public function countAll(): int
+    {
+        return (int) $this->repository->createQueryBuilder()
+            ->count()
+            ->getQuery()
+            ->execute();
+    }
+
+    public function delete(User $user): void
+    {
+        $this->documentManager->remove($user);
+        $this->documentManager->flush();
+    }
 }

@@ -12,6 +12,16 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations as MongoDB;
 #[MongoDB\Index(keys: ['email' => 'asc'], options: ['unique' => true])]
 class User
 {
+    public const ROLE_ADMIN = 'ROLE_ADMIN';
+    public const ROLE_MODERATOR = 'ROLE_MODERATOR';
+    public const ROLE_MEMBER = 'ROLE_MEMBER';
+
+    public const VALID_ROLES = [
+        self::ROLE_ADMIN,
+        self::ROLE_MODERATOR,
+        self::ROLE_MEMBER,
+    ];
+
     #[MongoDB\Id]
     private string $id;
 
@@ -43,7 +53,7 @@ class User
         string $username,
         string $email,
         string $password,
-        array $roles = ['ROLE_MEMBER']
+        array $roles = [self::ROLE_MEMBER]
     ) {
         $this->username = $username;
         $this->email = $email;
