@@ -1,0 +1,15 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Admin\Domain\Exception;
+
+use DomainException;
+
+final class InvalidRoleException extends DomainException
+{
+    public static function withRole(string $role): self
+    {
+        return new self(sprintf('Invalid role "%s"', $role));
+    }
+}
