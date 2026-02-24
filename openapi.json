@@ -1,0 +1,2437 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "IronCircle API",
+    "summary": "Fitness-focused community platform API",
+    "description": "IronCircle is a self-hostable, fitness-focused community platform API inspired by Reddit-style forums. Users form or join Circles (communities), create Posts with file attachments, write Comments with one-level threading, Vote on content, Flag inappropriate material, and optionally generate AI-powered TL;DR summaries.\n\nBuilt with Symfony 6.4, MongoDB, and a DDD + CQRS architecture.",
+    "version": "1.0.0",
+    "license": {
+      "name": "Proprietary",
+      "url": "https://github.com/ironcircle/ironcircle-api"
+    },
+    "contact": {
+      "name": "IronCircle",
+      "url": "https://github.com/ironcircle/ironcircle-api"
+    }
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "servers": [
+    {
+      "url": "{protocol}://{host}/api/v1",
+      "description": "IronCircle API v1",
+      "variables": {
+        "protocol": {
+          "default": "http",
+          "enum": ["http", "https"]
+        },
+        "host": {
+          "default": "localhost:8000"
+        }
+      }
+    }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "User registration and JWT authentication" },
+    { "name": "Circles", "description": "Community creation, membership, and moderation" },
+    { "name": "Posts", "description": "Content creation and management within circles" },
+    { "name": "Attachments", "description": "File uploads for posts (images, documents)" },
+    { "name": "Comments", "description": "One-level threaded comments on posts" },
+    { "name": "Votes", "description": "Upvote and downvote system for posts and comments" },
+    { "name": "Moderation", "description": "Content flagging, review queue, and resolution" },
+    { "name": "Feed", "description": "Aggregated post feeds across circles" },
+    { "name": "Search", "description": "Full-text search across circles, posts, and users" },
+    { "name": "AI Summaries", "description": "AI-generated TL;DR summaries for posts" },
+    { "name": "Admin", "description": "Admin-only user and circle management panel" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token obtained from `POST /auth/login`. Pass as `Authorization: Bearer <token>`."
+      }
+    },
+    "parameters": {
+      "limitParam": {
+        "name": "limit",
+        "in": "query",
+        "description": "Maximum number of items to return.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "examples": [10, 20, 50]
+        }
+      },
+      "offsetParam": {
+        "name": "offset",
+        "in": "query",
+        "description": "Number of items to skip before starting to return results.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "examples": [0, 20, 40]
+        }
+      },
+      "searchQuery": {
+        "name": "q",
+        "in": "query",
+        "required": true,
+        "description": "Search query string. Case-insensitive.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "examples": ["powerlifting", "bench press", "squat form"]
+        }
+      },
+      "circleId": {
+        "name": "circleId",
+        "in": "path",
+        "required": true,
+        "description": "Unique identifier of the circle.",
+        "schema": {
+          "type": "string",
+          "examples": ["665f1a2b3c4d5e6f7a8b9c0d"]
+        }
+      },
+      "postId": {
+        "name": "postId",
+        "in": "path",
+        "required": true,
+        "description": "Unique identifier of the post.",
+        "schema": {
+          "type": "string",
+          "examples": ["665f2d4e5f6a7b8c9d0e1f2a"]
+        }
+      },
+      "resourceId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Unique identifier of the resource.",
+        "schema": {
+          "type": "string",
+          "examples": ["665f1a2b3c4d5e6f7a8b9c0d"]
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Validation error — one or more fields are invalid.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": "VALIDATION_ERROR",
+              "message": "Title must be between 3 and 255 characters"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid JWT token.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": "UNAUTHORIZED",
+              "message": "JWT token not found"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated but insufficient permissions.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": "FORBIDDEN",
+              "message": "Access denied"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The requested resource was not found.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": "NOT_FOUND",
+              "message": "Resource with the given ID was not found"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "The request conflicts with an existing resource.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": "ALREADY_EXISTS",
+              "message": "A resource with this identifier already exists"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["error", "message"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Machine-readable error code.",
+            "examples": ["NOT_FOUND", "VALIDATION_ERROR", "FORBIDDEN", "UNAUTHORIZED"]
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error description.",
+            "examples": ["Circle with ID 665f1a2b3c4d5e6f7a8b9c0d was not found"]
+          }
+        }
+      },
+      "SuccessMessage": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Human-readable success confirmation.",
+            "examples": ["Resource deleted successfully"]
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "required": ["total", "limit", "offset"],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "Total number of matching items across all pages.",
+            "examples": [142]
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum items per page.",
+            "examples": [20]
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Number of items skipped.",
+            "examples": [0]
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["username", "email", "password"],
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 30,
+            "pattern": "^[a-zA-Z0-9_]+$",
+            "description": "Alphanumeric username with underscores allowed.",
+            "examples": ["marcus_lift"]
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "examples": ["marcus@ironcircle.io"]
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "format": "password",
+            "examples": ["Str0ngPa$$2026"]
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": {
+            "type": "string",
+            "examples": ["marcus_lift"]
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "examples": ["Str0ngPa$$2026"]
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "required": ["token", "userId", "username"],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "JWT access token. Include in subsequent requests as `Authorization: Bearer <token>`.",
+            "examples": ["eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJpYXQiOjE3MDk1Mzg0MDB9.signature"]
+          },
+          "userId": {
+            "type": "string",
+            "examples": ["665f0a1b2c3d4e5f6a7b8c9d"]
+          },
+          "username": {
+            "type": "string",
+            "examples": ["marcus_lift"]
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": ["665f0a1b2c3d4e5f6a7b8c9d"]
+          },
+          "username": {
+            "type": "string",
+            "examples": ["marcus_lift"]
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["ROLE_ADMIN", "ROLE_MODERATOR", "ROLE_MEMBER"]
+            },
+            "examples": [["ROLE_MEMBER"]]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-01-15T09:30:00+00:00"]
+          }
+        }
+      },
+      "AdminUser": {
+        "type": "object",
+        "description": "Extended user representation exposed only to admins. Includes email.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": ["665f0a1b2c3d4e5f6a7b8c9d"]
+          },
+          "username": {
+            "type": "string",
+            "examples": ["marcus_lift"]
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "examples": ["marcus@ironcircle.io"]
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["ROLE_ADMIN", "ROLE_MODERATOR", "ROLE_MEMBER"]
+            },
+            "examples": [["ROLE_MEMBER"]]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-01-15T09:30:00+00:00"]
+          }
+        }
+      },
+      "Circle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": ["665f1a2b3c4d5e6f7a8b9c0d"]
+          },
+          "name": {
+            "type": "string",
+            "examples": ["Powerlifting Hub"]
+          },
+          "slug": {
+            "type": "string",
+            "examples": ["powerlifting-hub"]
+          },
+          "description": {
+            "type": "string",
+            "examples": ["A circle for discussing powerlifting techniques, programs, and competition prep."]
+          },
+          "visibility": {
+            "type": "string",
+            "enum": ["public", "private"],
+            "examples": ["public"]
+          },
+          "creatorId": {
+            "type": "string",
+            "examples": ["665f0a1b2c3d4e5f6a7b8c9d"]
+          },
+          "moderatorIds": {
+            "type": "array",
+            "items": { "type": "string" },
+            "examples": [["665f0a1b2c3d4e5f6a7b8c9d", "665f0b2c3d4e5f6a7b8c9d0e"]]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-01-20T14:00:00+00:00"]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-02-01T10:15:00+00:00"]
+          }
+        }
+      },
+      "CreateCircleRequest": {
+        "type": "object",
+        "required": ["name", "description", "visibility"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 100,
+            "examples": ["Powerlifting Hub"]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500,
+            "examples": ["A circle for discussing powerlifting techniques, programs, and competition prep."]
+          },
+          "visibility": {
+            "type": "string",
+            "enum": ["public", "private"],
+            "examples": ["public"]
+          }
+        }
+      },
+      "UpdateCircleRequest": {
+        "type": "object",
+        "required": ["name", "description"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 100,
+            "examples": ["Powerlifting Hub – Advanced"]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500,
+            "examples": ["Advanced powerlifting circle for experienced lifters. Programs, peaking, and meet prep."]
+          }
+        }
+      },
+      "ChangeVisibilityRequest": {
+        "type": "object",
+        "required": ["visibility"],
+        "properties": {
+          "visibility": {
+            "type": "string",
+            "enum": ["public", "private"],
+            "examples": ["private"]
+          }
+        }
+      },
+      "Post": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": ["665f2d4e5f6a7b8c9d0e1f2a"]
+          },
+          "circleId": {
+            "type": "string",
+            "examples": ["665f1a2b3c4d5e6f7a8b9c0d"]
+          },
+          "authorId": {
+            "type": "string",
+            "examples": ["665f0a1b2c3d4e5f6a7b8c9d"]
+          },
+          "title": {
+            "type": "string",
+            "examples": ["My 12-week peaking program for a 500lb deadlift"]
+          },
+          "content": {
+            "type": "string",
+            "examples": ["Here is the full breakdown of my 12-week peaking cycle leading up to my first sanctioned meet. I pulled 500lb at 181 bodyweight..."]
+          },
+          "aiSummaryEnabled": {
+            "type": "boolean",
+            "examples": [true]
+          },
+          "attachments": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Attachment" }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-02-10T08:45:00+00:00"]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-02-10T08:45:00+00:00"]
+          }
+        }
+      },
+      "CreatePostRequest": {
+        "type": "object",
+        "required": ["title", "content"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255,
+            "examples": ["My 12-week peaking program for a 500lb deadlift"]
+          },
+          "content": {
+            "type": "string",
+            "minLength": 10,
+            "examples": ["Here is the full breakdown of my 12-week peaking cycle leading up to my first sanctioned meet..."]
+          },
+          "aiSummaryEnabled": {
+            "type": "boolean",
+            "default": false,
+            "examples": [false]
+          }
+        }
+      },
+      "UpdatePostRequest": {
+        "type": "object",
+        "required": ["title", "content"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255,
+            "examples": ["Updated: My 12-week peaking program results"]
+          },
+          "content": {
+            "type": "string",
+            "minLength": 10,
+            "examples": ["Updated with meet results. Hit all 9 lifts and totaled 1350 at 181..."]
+          }
+        }
+      },
+      "ToggleAiSummaryRequest": {
+        "type": "object",
+        "required": ["aiSummaryEnabled"],
+        "properties": {
+          "aiSummaryEnabled": {
+            "type": "boolean",
+            "examples": [true]
+          }
+        }
+      },
+      "Attachment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": ["665f3e5f6a7b8c9d0e1f2a3b"]
+          },
+          "postId": {
+            "type": "string",
+            "examples": ["665f2d4e5f6a7b8c9d0e1f2a"]
+          },
+          "authorId": {
+            "type": "string",
+            "examples": ["665f0a1b2c3d4e5f6a7b8c9d"]
+          },
+          "originalFilename": {
+            "type": "string",
+            "examples": ["deadlift-form-check.png"]
+          },
+          "mimeType": {
+            "type": "string",
+            "examples": ["image/png"]
+          },
+          "size": {
+            "type": "integer",
+            "description": "File size in bytes.",
+            "examples": [245760]
+          },
+          "uploadedAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-02-10T09:00:00+00:00"]
+          }
+        }
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": ["665f4a6b7c8d9e0f1a2b3c4d"]
+          },
+          "postId": {
+            "type": "string",
+            "examples": ["665f2d4e5f6a7b8c9d0e1f2a"]
+          },
+          "authorId": {
+            "type": "string",
+            "examples": ["665f0b2c3d4e5f6a7b8c9d0e"]
+          },
+          "parentCommentId": {
+            "type": ["string", "null"],
+            "description": "ID of the parent comment for replies. Null for top-level comments.",
+            "examples": [null, "665f4a6b7c8d9e0f1a2b3c4d"]
+          },
+          "content": {
+            "type": "string",
+            "examples": ["Great program breakdown. How did you manage fatigue in weeks 9-11?"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-02-10T12:30:00+00:00"]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-02-10T12:30:00+00:00"]
+          }
+        }
+      },
+      "CreateCommentRequest": {
+        "type": "object",
+        "required": ["content"],
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000,
+            "examples": ["Great program breakdown. How did you manage fatigue in weeks 9-11?"]
+          },
+          "parentCommentId": {
+            "type": ["string", "null"],
+            "description": "Must reference a top-level comment. Replies to replies are rejected.",
+            "examples": [null]
+          }
+        }
+      },
+      "UpdateCommentRequest": {
+        "type": "object",
+        "required": ["content"],
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000,
+            "examples": ["Updated: great program. Would love to see your accessory work too."]
+          }
+        }
+      },
+      "Vote": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": ["665f5b7c8d9e0f1a2b3c4d5e"]
+          },
+          "userId": {
+            "type": "string",
+            "examples": ["665f0b2c3d4e5f6a7b8c9d0e"]
+          },
+          "targetType": {
+            "type": "string",
+            "enum": ["post", "comment"],
+            "examples": ["post"]
+          },
+          "targetId": {
+            "type": "string",
+            "examples": ["665f2d4e5f6a7b8c9d0e1f2a"]
+          },
+          "value": {
+            "type": "integer",
+            "enum": [1, -1],
+            "description": "+1 for upvote, -1 for downvote.",
+            "examples": [1]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-02-10T13:00:00+00:00"]
+          }
+        }
+      },
+      "CastVoteRequest": {
+        "type": "object",
+        "required": ["targetType", "targetId", "value"],
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "enum": ["post", "comment"],
+            "examples": ["post"]
+          },
+          "targetId": {
+            "type": "string",
+            "examples": ["665f2d4e5f6a7b8c9d0e1f2a"]
+          },
+          "value": {
+            "type": "integer",
+            "enum": [1, -1],
+            "description": "+1 for upvote, -1 for downvote.",
+            "examples": [1]
+          }
+        }
+      },
+      "Flag": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": ["665f6c8d9e0f1a2b3c4d5e6f"]
+          },
+          "targetType": {
+            "type": "string",
+            "enum": ["post", "comment"],
+            "examples": ["post"]
+          },
+          "targetId": {
+            "type": "string",
+            "examples": ["665f2d4e5f6a7b8c9d0e1f2a"]
+          },
+          "reporterId": {
+            "type": "string",
+            "examples": ["665f0b2c3d4e5f6a7b8c9d0e"]
+          },
+          "reason": {
+            "type": "string",
+            "examples": ["Promoting unsafe lifting practices without proper disclaimers."]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "approved", "rejected"],
+            "description": "`approved` = resolved (flag was valid), `rejected` = dismissed (flag was invalid).",
+            "examples": ["pending"]
+          },
+          "resolvedById": {
+            "type": ["string", "null"],
+            "description": "ID of the moderator/admin who resolved or dismissed the flag.",
+            "examples": [null]
+          },
+          "resolvedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "examples": [null]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-02-11T07:20:00+00:00"]
+          }
+        }
+      },
+      "FlagContentRequest": {
+        "type": "object",
+        "required": ["targetType", "targetId", "reason"],
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "enum": ["post", "comment"],
+            "examples": ["post"]
+          },
+          "targetId": {
+            "type": "string",
+            "examples": ["665f2d4e5f6a7b8c9d0e1f2a"]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000,
+            "examples": ["Promoting unsafe lifting practices without proper disclaimers."]
+          }
+        }
+      },
+      "AISummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": ["665f7d9e0f1a2b3c4d5e6f7a"]
+          },
+          "postId": {
+            "type": "string",
+            "examples": ["665f2d4e5f6a7b8c9d0e1f2a"]
+          },
+          "summary": {
+            "type": "string",
+            "examples": ["A 12-week peaking program designed for an intermediate lifter targeting a 500lb deadlift at 181lb bodyweight, featuring progressive overload with strategic deloads in weeks 4, 8, and a taper through week 12."]
+          },
+          "model": {
+            "type": "string",
+            "description": "Identifier of the AI model used for generation.",
+            "examples": ["facebook/bart-large-cnn"]
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-02-10T09:15:00+00:00"]
+          }
+        }
+      },
+      "SearchUser": {
+        "type": "object",
+        "description": "User representation in search results. Email is deliberately excluded.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": ["665f0a1b2c3d4e5f6a7b8c9d"]
+          },
+          "username": {
+            "type": "string",
+            "examples": ["marcus_lift"]
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["ROLE_ADMIN", "ROLE_MODERATOR", "ROLE_MEMBER"]
+            },
+            "examples": [["ROLE_MEMBER"]]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "examples": ["2026-01-15T09:30:00+00:00"]
+          }
+        }
+      },
+      "UpdateUserRolesRequest": {
+        "type": "object",
+        "required": ["roles"],
+        "properties": {
+          "roles": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": ["ROLE_ADMIN", "ROLE_MODERATOR", "ROLE_MEMBER"]
+            },
+            "examples": [["ROLE_MODERATOR", "ROLE_MEMBER"]]
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "operationId": "registerUser",
+        "tags": ["Auth"],
+        "summary": "Register a new user",
+        "description": "Creates a new user account with `ROLE_MEMBER` assigned by default.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["message", "userId"],
+                  "properties": {
+                    "message": { "type": "string" },
+                    "userId": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "message": "User registered successfully",
+                  "userId": "665f0a1b2c3d4e5f6a7b8c9d"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": {
+            "description": "Username or email already exists.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "USER_ALREADY_EXISTS",
+                  "message": "A user with this username already exists"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "loginUser",
+        "tags": ["Auth"],
+        "summary": "Authenticate and receive JWT",
+        "description": "Validates credentials and returns a JWT access token for subsequent authenticated requests.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TokenResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "INVALID_CREDENTIALS",
+                  "message": "Invalid username or password"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/circles": {
+      "post": {
+        "operationId": "createCircle",
+        "tags": ["Circles"],
+        "summary": "Create a circle",
+        "description": "Creates a new circle. The authenticated user becomes the creator and first moderator. A URL-safe slug is auto-generated from the name.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCircleRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Circle created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "circle": { "$ref": "#/components/schemas/Circle" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": {
+            "description": "Circle name or slug already exists.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "CIRCLE_ALREADY_EXISTS",
+                  "message": "A circle with this name already exists"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listCircles",
+        "tags": ["Circles"],
+        "summary": "List circles",
+        "description": "Returns public circles for anonymous users. Authenticated users also see private circles where they are creator or moderator.",
+        "parameters": [
+          { "$ref": "#/components/parameters/limitParam" },
+          { "$ref": "#/components/parameters/offsetParam" },
+          {
+            "name": "public_only",
+            "in": "query",
+            "description": "When true, returns only public circles regardless of authentication.",
+            "schema": { "type": "boolean" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated circle list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "circles": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Circle" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/circles/{id}": {
+      "get": {
+        "operationId": "getCircleById",
+        "tags": ["Circles"],
+        "summary": "Get circle by ID",
+        "description": "Public circles are accessible to anyone. Private circles require the requester to be the creator, a moderator, or an admin.",
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "Circle details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "circle": { "$ref": "#/components/schemas/Circle" }
+                  }
+                }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "operationId": "updateCircle",
+        "tags": ["Circles"],
+        "summary": "Update circle",
+        "description": "Full replacement of circle name and description. Requires creator, moderator, or admin role.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateCircleRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Circle updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "circle": { "$ref": "#/components/schemas/Circle" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "operationId": "patchCircle",
+        "tags": ["Circles"],
+        "summary": "Partial update circle",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateCircleRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Circle updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "circle": { "$ref": "#/components/schemas/Circle" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteCircle",
+        "tags": ["Circles"],
+        "summary": "Delete circle",
+        "description": "Permanently deletes the circle and cascades to all posts, attachments (files and records), and comments. Requires creator or admin role.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "Circle deleted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessMessage" },
+                "example": { "message": "Circle deleted successfully" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/circles/slug/{slug}": {
+      "get": {
+        "operationId": "getCircleBySlug",
+        "tags": ["Circles"],
+        "summary": "Get circle by slug",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "examples": ["powerlifting-hub"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Circle details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "circle": { "$ref": "#/components/schemas/Circle" }
+                  }
+                }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/circles/{id}/visibility": {
+      "patch": {
+        "operationId": "changeCircleVisibility",
+        "tags": ["Circles"],
+        "summary": "Change circle visibility",
+        "description": "Toggle between public and private. Requires creator or admin role.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChangeVisibilityRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Visibility changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "circle": { "$ref": "#/components/schemas/Circle" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/circles/{circleId}/posts": {
+      "post": {
+        "operationId": "createPost",
+        "tags": ["Posts"],
+        "summary": "Create a post in a circle",
+        "description": "Creates a new post within the specified circle. Requires authentication and access to the circle.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/circleId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreatePostRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Post created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post": { "$ref": "#/components/schemas/Post" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "get": {
+        "operationId": "listPostsByCircle",
+        "tags": ["Posts"],
+        "summary": "List posts in a circle",
+        "description": "Returns posts ordered by creation date (newest first). Attachments are embedded in each post.",
+        "parameters": [
+          { "$ref": "#/components/parameters/circleId" },
+          { "$ref": "#/components/parameters/limitParam" },
+          { "$ref": "#/components/parameters/offsetParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated post list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "posts": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Post" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/posts/{id}": {
+      "get": {
+        "operationId": "getPostById",
+        "tags": ["Posts"],
+        "summary": "Get a single post",
+        "description": "Returns post with embedded attachments. Public circle posts are accessible to anyone.",
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "Post details with attachments.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post": { "$ref": "#/components/schemas/Post" }
+                  }
+                }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "operationId": "updatePost",
+        "tags": ["Posts"],
+        "summary": "Update post",
+        "description": "Full replacement of post title and content. Requires author, circle moderator/creator, or admin.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdatePostRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Post updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post": { "$ref": "#/components/schemas/Post" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "operationId": "patchPost",
+        "tags": ["Posts"],
+        "summary": "Partial update post",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdatePostRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Post updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post": { "$ref": "#/components/schemas/Post" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "operationId": "deletePost",
+        "tags": ["Posts"],
+        "summary": "Delete post",
+        "description": "Permanently deletes the post and cascades to all attachments (files removed from disk + records deleted) and comments.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "Post deleted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessMessage" },
+                "example": { "message": "Post deleted successfully" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/posts/{id}/ai-summary": {
+      "patch": {
+        "operationId": "toggleAiSummary",
+        "tags": ["Posts"],
+        "summary": "Toggle AI summary flag on post",
+        "description": "Enables or disables AI summary generation for this post. Only the post author can toggle this — no moderator override.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ToggleAiSummaryRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "AI summary flag toggled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post": { "$ref": "#/components/schemas/Post" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "get": {
+        "operationId": "getAiSummary",
+        "tags": ["AI Summaries"],
+        "summary": "Get cached AI summary for a post",
+        "description": "Returns the cached AI-generated summary. Requires the post's `aiSummaryEnabled` to be `true`. Returns 400 if disabled, 404 if not yet generated.",
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "AI summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "aiSummary": { "$ref": "#/components/schemas/AISummary" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "AI summary not enabled on this post.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "AI_SUMMARY_NOT_ENABLED",
+                  "message": "AI summary is not enabled for this post"
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/posts/{id}/ai-summary/generate": {
+      "post": {
+        "operationId": "generateAiSummary",
+        "tags": ["AI Summaries"],
+        "summary": "Generate AI summary for a post",
+        "description": "Triggers synchronous summary generation via HuggingFace Inference API using `facebook/bart-large-cnn`. Returns the cached summary if one already exists. Requires `aiSummaryEnabled` to be `true` on the post.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "Summary generated or returned from cache.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "aiSummary": { "$ref": "#/components/schemas/AISummary" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "AI summary not enabled on this post.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "AI_SUMMARY_NOT_ENABLED",
+                  "message": "AI summary is not enabled for this post"
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "503": {
+            "description": "AI provider unavailable or model is loading.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "AI_GENERATION_FAILED",
+                  "message": "AI summary generation failed. The model may be loading — try again shortly."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/posts/{postId}/attachments": {
+      "post": {
+        "operationId": "uploadAttachment",
+        "tags": ["Attachments"],
+        "summary": "Upload file attachment",
+        "description": "Uploads a file and attaches it to the post. Allowed MIME types: `image/jpeg`, `image/png`, `image/gif`, `image/webp`, `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `text/plain`. Maximum file size: 10 MB.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/postId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "contentMediaType": "application/octet-stream",
+                    "contentEncoding": "binary",
+                    "description": "The file to upload."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "File uploaded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "attachment": { "$ref": "#/components/schemas/Attachment" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid file type or size exceeds 10 MB.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "VALIDATION_ERROR",
+                  "message": "File type not allowed. Accepted: jpeg, png, gif, webp, pdf, doc, docx, txt"
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "get": {
+        "operationId": "listAttachmentsByPost",
+        "tags": ["Attachments"],
+        "summary": "List attachments for a post",
+        "parameters": [{ "$ref": "#/components/parameters/postId" }],
+        "responses": {
+          "200": {
+            "description": "Attachment list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "attachments": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Attachment" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/attachments/{id}/download": {
+      "get": {
+        "operationId": "downloadAttachment",
+        "tags": ["Attachments"],
+        "summary": "Download attachment file",
+        "description": "Returns the raw file content inline via `BinaryFileResponse`. The `Content-Type` header matches the stored MIME type.",
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "File content.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream",
+                  "contentEncoding": "binary"
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/attachments/{id}": {
+      "delete": {
+        "operationId": "deleteAttachment",
+        "tags": ["Attachments"],
+        "summary": "Delete attachment",
+        "description": "Removes the file from disk and deletes the record. Requires being the attachment author, post author, circle moderator/creator, or admin.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "Attachment deleted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessMessage" },
+                "example": { "message": "Attachment deleted successfully" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/posts/{postId}/comments": {
+      "post": {
+        "operationId": "createComment",
+        "tags": ["Comments"],
+        "summary": "Create a comment",
+        "description": "Creates a comment on the specified post. One level of threading is supported — set `parentCommentId` to reply to a top-level comment. Replies to replies are rejected with 400.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/postId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCommentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Comment created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "comment": { "$ref": "#/components/schemas/Comment" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or nested reply attempt.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "VALIDATION_ERROR",
+                  "message": "Replies to replies are not allowed. Only top-level comments can be replied to."
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "get": {
+        "operationId": "listCommentsByPost",
+        "tags": ["Comments"],
+        "summary": "List comments on a post",
+        "parameters": [
+          { "$ref": "#/components/parameters/postId" },
+          { "$ref": "#/components/parameters/limitParam" },
+          { "$ref": "#/components/parameters/offsetParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated comment list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "comments": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Comment" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/comments/{id}": {
+      "put": {
+        "operationId": "updateComment",
+        "tags": ["Comments"],
+        "summary": "Update comment",
+        "description": "Full replacement of comment content. Requires author, circle moderator/creator, or admin.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateCommentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Comment updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "comment": { "$ref": "#/components/schemas/Comment" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "operationId": "patchComment",
+        "tags": ["Comments"],
+        "summary": "Partial update comment",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateCommentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Comment updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "comment": { "$ref": "#/components/schemas/Comment" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteComment",
+        "tags": ["Comments"],
+        "summary": "Delete comment",
+        "description": "Requires author, circle moderator/creator, or admin.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "Comment deleted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessMessage" },
+                "example": { "message": "Comment deleted successfully" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/votes": {
+      "post": {
+        "operationId": "castVote",
+        "tags": ["Votes"],
+        "summary": "Cast or change a vote",
+        "description": "Upsert semantics — if a vote already exists for the same user and target, its value is updated. Authors cannot vote on their own content (`SELF_VOTING` error).",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CastVoteRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Vote cast or updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "vote": { "$ref": "#/components/schemas/Vote" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Self-voting attempt or invalid vote value.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "SELF_VOTING",
+                  "message": "You cannot vote on your own content"
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/votes/{targetType}/{targetId}": {
+      "delete": {
+        "operationId": "retractVote",
+        "tags": ["Votes"],
+        "summary": "Retract a vote",
+        "description": "Removes the authenticated user's vote from the specified target.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "targetType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["post", "comment"]
+            }
+          },
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "examples": ["665f2d4e5f6a7b8c9d0e1f2a"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vote retracted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessMessage" },
+                "example": { "message": "Vote retracted successfully" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": {
+            "description": "No vote found for this user and target.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "NOT_FOUND",
+                  "message": "Vote not found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/flags": {
+      "post": {
+        "operationId": "flagContent",
+        "tags": ["Moderation"],
+        "summary": "Flag content",
+        "description": "Flags a post or comment for moderator review. A user cannot flag the same target twice — duplicate check spans all statuses (pending, approved, rejected).",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/FlagContentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Flag created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "flag": { "$ref": "#/components/schemas/Flag" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": {
+            "description": "User has already flagged this target.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "DUPLICATE_FLAG",
+                  "message": "You have already flagged this content"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/moderation/flags": {
+      "get": {
+        "operationId": "listPendingFlags",
+        "tags": ["Moderation"],
+        "summary": "List pending flags",
+        "description": "Returns flags with `pending` status for moderator/admin review.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/limitParam" },
+          { "$ref": "#/components/parameters/offsetParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated pending flag list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "flags": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Flag" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/moderation/flags/{id}/resolve": {
+      "patch": {
+        "operationId": "resolveFlag",
+        "tags": ["Moderation"],
+        "summary": "Resolve (approve) a flag",
+        "description": "Marks the flag as `approved` — indicates the flagged content violated rules. Requires moderator or admin role.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "Flag resolved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "flag": { "$ref": "#/components/schemas/Flag" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": {
+            "description": "Flag has already been resolved or dismissed.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "ALREADY_RESOLVED",
+                  "message": "This flag has already been actioned"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/moderation/flags/{id}/dismiss": {
+      "patch": {
+        "operationId": "dismissFlag",
+        "tags": ["Moderation"],
+        "summary": "Dismiss (reject) a flag",
+        "description": "Marks the flag as `rejected` — indicates the flag was invalid. Requires moderator or admin role.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "Flag dismissed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "flag": { "$ref": "#/components/schemas/Flag" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": {
+            "description": "Flag has already been resolved or dismissed.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "ALREADY_RESOLVED",
+                  "message": "This flag has already been actioned"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feed": {
+      "get": {
+        "operationId": "getGlobalFeed",
+        "tags": ["Feed"],
+        "summary": "Global feed",
+        "description": "Returns posts across accessible circles ordered by creation date (newest first). Anonymous users see posts from public circles only. Authenticated users see posts from public circles plus circles where they are creator or moderator.",
+        "parameters": [
+          { "$ref": "#/components/parameters/limitParam" },
+          { "$ref": "#/components/parameters/offsetParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated feed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "posts": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Post" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feed/circles/{circleId}": {
+      "get": {
+        "operationId": "getCircleFeed",
+        "tags": ["Feed"],
+        "summary": "Circle-scoped feed",
+        "description": "Returns posts from a specific circle ordered by creation date. Private circles require authentication and membership.",
+        "parameters": [
+          { "$ref": "#/components/parameters/circleId" },
+          { "$ref": "#/components/parameters/limitParam" },
+          { "$ref": "#/components/parameters/offsetParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated circle feed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "posts": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Post" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/search/circles": {
+      "get": {
+        "operationId": "searchCircles",
+        "tags": ["Search"],
+        "summary": "Search circles",
+        "description": "Case-insensitive regex search on circle name and description. Respects visibility rules — anonymous users see only public circles.",
+        "parameters": [
+          { "$ref": "#/components/parameters/searchQuery" },
+          { "$ref": "#/components/parameters/limitParam" },
+          { "$ref": "#/components/parameters/offsetParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["query", "circles", "pagination"],
+                  "properties": {
+                    "query": {
+                      "type": "string",
+                      "examples": ["powerlifting"]
+                    },
+                    "circles": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Circle" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/search/posts": {
+      "get": {
+        "operationId": "searchPosts",
+        "tags": ["Search"],
+        "summary": "Search posts",
+        "description": "Case-insensitive regex search on post title and content. Scoped to circles accessible by the requester.",
+        "parameters": [
+          { "$ref": "#/components/parameters/searchQuery" },
+          { "$ref": "#/components/parameters/limitParam" },
+          { "$ref": "#/components/parameters/offsetParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["query", "posts", "pagination"],
+                  "properties": {
+                    "query": {
+                      "type": "string",
+                      "examples": ["deadlift program"]
+                    },
+                    "posts": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Post" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/search/users": {
+      "get": {
+        "operationId": "searchUsers",
+        "tags": ["Search"],
+        "summary": "Search users",
+        "description": "Case-insensitive regex search on username. Email is deliberately not exposed in search results.",
+        "parameters": [
+          { "$ref": "#/components/parameters/searchQuery" },
+          { "$ref": "#/components/parameters/limitParam" },
+          { "$ref": "#/components/parameters/offsetParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["query", "users", "pagination"],
+                  "properties": {
+                    "query": {
+                      "type": "string",
+                      "examples": ["marcus"]
+                    },
+                    "users": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/SearchUser" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "operationId": "adminListUsers",
+        "tags": ["Admin"],
+        "summary": "List all users",
+        "description": "Returns all users with email included. Requires `ROLE_ADMIN`.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/limitParam" },
+          { "$ref": "#/components/parameters/offsetParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated user list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "users": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AdminUser" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/admin/users/{id}": {
+      "get": {
+        "operationId": "adminGetUser",
+        "tags": ["Admin"],
+        "summary": "Get user details",
+        "description": "Returns full user details including email. Requires `ROLE_ADMIN`.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "User details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": { "$ref": "#/components/schemas/AdminUser" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "operationId": "adminDeleteUser",
+        "tags": ["Admin"],
+        "summary": "Delete user",
+        "description": "Permanently deletes a user. Users with `ROLE_ADMIN` cannot be deleted — returns 403. Requires `ROLE_ADMIN`.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "User deleted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessMessage" },
+                "example": { "message": "User deleted successfully" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": {
+            "description": "Not an admin or attempting to delete an admin user.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "FORBIDDEN",
+                  "message": "Cannot delete a user with ROLE_ADMIN"
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/admin/users/{id}/roles": {
+      "patch": {
+        "operationId": "adminUpdateUserRoles",
+        "tags": ["Admin"],
+        "summary": "Update user roles",
+        "description": "Replaces the user's roles. Each role must be one of `ROLE_ADMIN`, `ROLE_MODERATOR`, or `ROLE_MEMBER`. At least one role is required. Requires `ROLE_ADMIN`.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateUserRolesRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Roles updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": { "$ref": "#/components/schemas/AdminUser" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": {
+            "description": "One or more role values are invalid.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "INVALID_ROLE",
+                  "message": "Invalid role: ROLE_SUPERADMIN. Allowed: ROLE_ADMIN, ROLE_MODERATOR, ROLE_MEMBER"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/circles": {
+      "get": {
+        "operationId": "adminListCircles",
+        "tags": ["Admin"],
+        "summary": "List all circles",
+        "description": "Returns all circles regardless of visibility. Requires `ROLE_ADMIN`.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/limitParam" },
+          { "$ref": "#/components/parameters/offsetParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated circle list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "circles": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Circle" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/admin/circles/{id}": {
+      "delete": {
+        "operationId": "adminForceDeleteCircle",
+        "tags": ["Admin"],
+        "summary": "Force-delete circle",
+        "description": "Permanently deletes a circle regardless of creator. Cascades to all posts, attachments (files removed from disk + records deleted), and comments. Requires `ROLE_ADMIN`.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/resourceId" }],
+        "responses": {
+          "200": {
+            "description": "Circle force-deleted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessMessage" },
+                "example": { "message": "Circle force-deleted successfully" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  }
+}
