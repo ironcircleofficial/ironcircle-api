@@ -26,3 +26,9 @@
 ## specification for this project
 /specification.MD
 /development-progress.MD
+
+## local dev & AI tooling
+/CLAUDE.md
+/research.md
+/plan.md
+/api-tests.py
