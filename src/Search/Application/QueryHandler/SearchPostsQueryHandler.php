@@ -38,9 +38,12 @@ final readonly class SearchPostsQueryHandler
 
         $total = $this->postRepository->countSearchByQuery($query->query, $accessibleCircleIds);
 
+        $authorIds = array_values(array_unique(array_map(fn(Post $p) => $p->getAuthorId(), $posts)));
+        $usersById = $this->userRepository->findByIds($authorIds);
+
         $postDTOs = array_map(
-            function (Post $post) {
-                $author = $this->userRepository->findById($post->getAuthorId());
+            function (Post $post) use ($usersById) {
+                $author = $usersById[$post->getAuthorId()] ?? null;
 
                 if ($author === null) {
                     throw UserNotFoundException::withId($post->getAuthorId());

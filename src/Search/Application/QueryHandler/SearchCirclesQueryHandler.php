@@ -34,9 +34,12 @@ final readonly class SearchCirclesQueryHandler
 
         $total = $this->circleRepository->countSearchByQuery($query->query, $query->userId);
 
+        $creatorIds = array_values(array_unique(array_map(fn(Circle $c) => $c->getCreatorId(), $circles)));
+        $usersById = $this->userRepository->findByIds($creatorIds);
+
         $circleDTOs = array_map(
-            function (Circle $circle) {
-                $creator = $this->userRepository->findById($circle->getCreatorId());
+            function (Circle $circle) use ($usersById) {
+                $creator = $usersById[$circle->getCreatorId()] ?? null;
 
                 if ($creator === null) {
                     throw UserNotFoundException::withId($circle->getCreatorId());

@@ -27,9 +27,15 @@ final readonly class ListPendingFlagsQueryHandler
         $flags = $this->flagRepository->findPendingFlags($query->limit, $query->offset);
         $total = $this->flagRepository->countPendingFlags();
 
+        $reporterIds = array_map(fn($f) => $f->getReporterId(), $flags);
+        $resolverIds = array_values(array_filter(array_map(fn($f) => $f->getResolvedById(), $flags)));
+        $usersById = $this->userRepository->findByIds(
+            array_values(array_unique(array_merge($reporterIds, $resolverIds)))
+        );
+
         $flagDTOs = array_map(
-            function ($flag) {
-                $reporter = $this->userRepository->findById($flag->getReporterId());
+            function ($flag) use ($usersById) {
+                $reporter = $usersById[$flag->getReporterId()] ?? null;
 
                 if ($reporter === null) {
                     throw UserNotFoundException::withId($flag->getReporterId());
@@ -38,7 +44,7 @@ final readonly class ListPendingFlagsQueryHandler
                 $resolvedBy = null;
 
                 if ($flag->getResolvedById() !== null) {
-                    $resolver = $this->userRepository->findById($flag->getResolvedById());
+                    $resolver = $usersById[$flag->getResolvedById()] ?? null;
 
                     if ($resolver === null) {
                         throw UserNotFoundException::withId($flag->getResolvedById());

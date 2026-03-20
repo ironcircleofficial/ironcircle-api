@@ -36,10 +36,12 @@ final readonly class ListPostAttachmentsByPostQueryHandler
         }
 
         $attachments = $this->attachmentRepository->findByPostId($query->postId);
+        $authorIds = array_values(array_unique(array_map(fn($a) => $a->getAuthorId(), $attachments)));
+        $usersById = $this->userRepository->findByIds($authorIds);
 
         return array_map(
-            function ($attachment) {
-                $author = $this->userRepository->findById($attachment->getAuthorId());
+            function ($attachment) use ($usersById) {
+                $author = $usersById[$attachment->getAuthorId()] ?? null;
 
                 if ($author === null) {
                     throw UserNotFoundException::withId($attachment->getAuthorId());

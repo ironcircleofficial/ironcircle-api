@@ -27,9 +27,12 @@ final readonly class ListCommentsByPostQueryHandler
         $comments = $this->commentRepository->findByPostId($query->postId, $query->limit, $query->offset);
         $total = $this->commentRepository->countByPostId($query->postId);
 
+        $authorIds = array_values(array_unique(array_map(fn($c) => $c->getAuthorId(), $comments)));
+        $usersById = $this->userRepository->findByIds($authorIds);
+
         $commentDTOs = array_map(
-            function ($comment) {
-                $author = $this->userRepository->findById($comment->getAuthorId());
+            function ($comment) use ($usersById) {
+                $author = $usersById[$comment->getAuthorId()] ?? null;
 
                 if ($author === null) {
                     throw UserNotFoundException::withId($comment->getAuthorId());

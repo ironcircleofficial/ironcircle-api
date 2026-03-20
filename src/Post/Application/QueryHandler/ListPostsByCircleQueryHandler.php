@@ -33,9 +33,15 @@ final readonly class ListPostsByCircleQueryHandler
         $postIds = array_map(fn($post) => $post->getId(), $posts);
         $allAttachments = $this->attachmentRepository->findByPostIds($postIds);
 
+        $attachmentAuthorIds = array_map(fn($a) => $a->getAuthorId(), $allAttachments);
+        $postAuthorIds = array_map(fn($p) => $p->getAuthorId(), $posts);
+        $usersById = $this->userRepository->findByIds(
+            array_values(array_unique(array_merge($attachmentAuthorIds, $postAuthorIds)))
+        );
+
         $attachmentsByPost = [];
         foreach ($allAttachments as $attachment) {
-            $attachmentAuthor = $this->userRepository->findById($attachment->getAuthorId());
+            $attachmentAuthor = $usersById[$attachment->getAuthorId()] ?? null;
 
             if ($attachmentAuthor === null) {
                 throw UserNotFoundException::withId($attachment->getAuthorId());
@@ -54,8 +60,8 @@ final readonly class ListPostsByCircleQueryHandler
         }
 
         $postDTOs = array_map(
-            function ($post) use ($attachmentsByPost) {
-                $author = $this->userRepository->findById($post->getAuthorId());
+            function ($post) use ($attachmentsByPost, $usersById) {
+                $author = $usersById[$post->getAuthorId()] ?? null;
 
                 if ($author === null) {
                     throw UserNotFoundException::withId($post->getAuthorId());

@@ -32,9 +32,12 @@ final readonly class ListCirclesQueryHandler
             ? $this->circleRepository->countPublic()
             : $this->circleRepository->count();
 
+        $creatorIds = array_values(array_unique(array_map(fn($c) => $c->getCreatorId(), $circles)));
+        $usersById = $this->userRepository->findByIds($creatorIds);
+
         $circleDTOs = array_map(
-            function ($circle) {
-                $creator = $this->userRepository->findById($circle->getCreatorId());
+            function ($circle) use ($usersById) {
+                $creator = $usersById[$circle->getCreatorId()] ?? null;
 
                 if ($creator === null) {
                     throw UserNotFoundException::withId($circle->getCreatorId());

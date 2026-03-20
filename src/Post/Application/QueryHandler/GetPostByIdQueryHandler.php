@@ -42,9 +42,12 @@ final readonly class GetPostByIdQueryHandler
         $authorInline = new UserInlineDTO($author->getId(), $author->getUsername());
 
         $attachments = $this->attachmentRepository->findByPostId($post->getId());
+        $attachmentAuthorIds = array_values(array_unique(array_map(fn($a) => $a->getAuthorId(), $attachments)));
+        $usersById = $this->userRepository->findByIds($attachmentAuthorIds);
+
         $attachmentDTOs = array_map(
-            function ($attachment) {
-                $attachmentAuthor = $this->userRepository->findById($attachment->getAuthorId());
+            function ($attachment) use ($usersById) {
+                $attachmentAuthor = $usersById[$attachment->getAuthorId()] ?? null;
 
                 if ($attachmentAuthor === null) {
                     throw UserNotFoundException::withId($attachment->getAuthorId());
