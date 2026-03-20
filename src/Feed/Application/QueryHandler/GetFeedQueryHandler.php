@@ -11,6 +11,9 @@ use App\Post\Application\DTO\PostAttachmentDTO;
 use App\Post\Application\DTO\PostDTO;
 use App\Post\Domain\Repository\PostAttachmentRepositoryInterface;
 use App\Post\Domain\Repository\PostRepositoryInterface;
+use App\User\Application\DTO\UserInlineDTO;
+use App\User\Domain\Exception\UserNotFoundException;
+use App\User\Domain\Repository\UserRepositoryInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -19,7 +22,8 @@ final readonly class GetFeedQueryHandler
     public function __construct(
         private CircleRepositoryInterface $circleRepository,
         private PostRepositoryInterface $postRepository,
-        private PostAttachmentRepositoryInterface $attachmentRepository
+        private PostAttachmentRepositoryInterface $attachmentRepository,
+        private UserRepositoryInterface $userRepository
     ) {
     }
 
@@ -35,10 +39,16 @@ final readonly class GetFeedQueryHandler
 
         $attachmentsByPost = [];
         foreach ($allAttachments as $attachment) {
+            $attachmentAuthor = $this->userRepository->findById($attachment->getAuthorId());
+
+            if ($attachmentAuthor === null) {
+                throw UserNotFoundException::withId($attachment->getAuthorId());
+            }
+
             $attachmentsByPost[$attachment->getPostId()][] = new PostAttachmentDTO(
                 id: $attachment->getId(),
                 postId: $attachment->getPostId(),
-                authorId: $attachment->getAuthorId(),
+                author: new UserInlineDTO($attachmentAuthor->getId(), $attachmentAuthor->getUsername()),
                 originalFilename: $attachment->getOriginalFilename(),
                 storedFilename: $attachment->getStoredFilename(),
                 mimeType: $attachment->getMimeType(),
@@ -48,17 +58,25 @@ final readonly class GetFeedQueryHandler
         }
 
         $postDTOs = array_map(
-            fn($post) => new PostDTO(
-                id: $post->getId(),
-                circleId: $post->getCircleId(),
-                authorId: $post->getAuthorId(),
-                title: $post->getTitle(),
-                content: $post->getContent(),
-                aiSummaryEnabled: $post->isAiSummaryEnabled(),
-                createdAt: $post->getCreatedAt(),
-                updatedAt: $post->getUpdatedAt(),
-                attachments: $attachmentsByPost[$post->getId()] ?? []
-            ),
+            function ($post) use ($attachmentsByPost) {
+                $author = $this->userRepository->findById($post->getAuthorId());
+
+                if ($author === null) {
+                    throw UserNotFoundException::withId($post->getAuthorId());
+                }
+
+                return new PostDTO(
+                    id: $post->getId(),
+                    circleId: $post->getCircleId(),
+                    author: new UserInlineDTO($author->getId(), $author->getUsername()),
+                    title: $post->getTitle(),
+                    content: $post->getContent(),
+                    aiSummaryEnabled: $post->isAiSummaryEnabled(),
+                    createdAt: $post->getCreatedAt(),
+                    updatedAt: $post->getUpdatedAt(),
+                    attachments: $attachmentsByPost[$post->getId()] ?? []
+                );
+            },
             $posts
         );
 

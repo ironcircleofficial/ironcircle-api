@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Moderation\Application\DTO;
 
+use App\User\Application\DTO\UserInlineDTO;
 use DateTimeImmutable;
 
 final readonly class FlagDTO
@@ -12,10 +13,10 @@ final readonly class FlagDTO
         public string $id,
         public string $targetType,
         public string $targetId,
-        public string $reporterId,
+        public UserInlineDTO $reporter,
         public string $reason,
         public string $status,
-        public ?string $resolvedById,
+        public ?UserInlineDTO $resolvedBy,
         public ?DateTimeImmutable $resolvedAt,
         public DateTimeImmutable $createdAt
     ) {

@@ -8,13 +8,17 @@ use App\Moderation\Application\DTO\FlagDTO;
 use App\Moderation\Application\DTO\FlagListDTO;
 use App\Moderation\Application\Query\ListPendingFlagsQuery;
 use App\Moderation\Domain\Repository\FlagRepositoryInterface;
+use App\User\Application\DTO\UserInlineDTO;
+use App\User\Domain\Exception\UserNotFoundException;
+use App\User\Domain\Repository\UserRepositoryInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
 final readonly class ListPendingFlagsQueryHandler
 {
     public function __construct(
-        private FlagRepositoryInterface $flagRepository
+        private FlagRepositoryInterface $flagRepository,
+        private UserRepositoryInterface $userRepository
     ) {
     }
 
@@ -24,17 +28,37 @@ final readonly class ListPendingFlagsQueryHandler
         $total = $this->flagRepository->countPendingFlags();
 
         $flagDTOs = array_map(
-            fn($flag) => new FlagDTO(
-                id: $flag->getId(),
-                targetType: $flag->getTargetType(),
-                targetId: $flag->getTargetId(),
-                reporterId: $flag->getReporterId(),
-                reason: $flag->getReason(),
-                status: $flag->getStatus(),
-                resolvedById: $flag->getResolvedById(),
-                resolvedAt: $flag->getResolvedAt(),
-                createdAt: $flag->getCreatedAt()
-            ),
+            function ($flag) {
+                $reporter = $this->userRepository->findById($flag->getReporterId());
+
+                if ($reporter === null) {
+                    throw UserNotFoundException::withId($flag->getReporterId());
+                }
+
+                $resolvedBy = null;
+
+                if ($flag->getResolvedById() !== null) {
+                    $resolver = $this->userRepository->findById($flag->getResolvedById());
+
+                    if ($resolver === null) {
+                        throw UserNotFoundException::withId($flag->getResolvedById());
+                    }
+
+                    $resolvedBy = new UserInlineDTO($resolver->getId(), $resolver->getUsername());
+                }
+
+                return new FlagDTO(
+                    id: $flag->getId(),
+                    targetType: $flag->getTargetType(),
+                    targetId: $flag->getTargetId(),
+                    reporter: new UserInlineDTO($reporter->getId(), $reporter->getUsername()),
+                    reason: $flag->getReason(),
+                    status: $flag->getStatus(),
+                    resolvedBy: $resolvedBy,
+                    resolvedAt: $flag->getResolvedAt(),
+                    createdAt: $flag->getCreatedAt()
+                );
+            },
             $flags
         );
 

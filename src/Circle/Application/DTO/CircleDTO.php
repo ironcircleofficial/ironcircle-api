@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Circle\Application\DTO;
 
+use App\User\Application\DTO\UserInlineDTO;
 use DateTimeImmutable;
 
 final readonly class CircleDTO
@@ -17,7 +18,7 @@ final readonly class CircleDTO
         public string $slug,
         public string $description,
         public string $visibility,
-        public string $creatorId,
+        public UserInlineDTO $creator,
         public array $moderatorIds,
         public DateTimeImmutable $createdAt,
         public DateTimeImmutable $updatedAt

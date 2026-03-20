@@ -9,6 +9,9 @@ use App\Post\Application\Query\ListPostAttachmentsByPostQuery;
 use App\Post\Domain\Exception\PostNotFoundException;
 use App\Post\Domain\Repository\PostAttachmentRepositoryInterface;
 use App\Post\Domain\Repository\PostRepositoryInterface;
+use App\User\Application\DTO\UserInlineDTO;
+use App\User\Domain\Exception\UserNotFoundException;
+use App\User\Domain\Repository\UserRepositoryInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -16,7 +19,8 @@ final readonly class ListPostAttachmentsByPostQueryHandler
 {
     public function __construct(
         private PostRepositoryInterface $postRepository,
-        private PostAttachmentRepositoryInterface $attachmentRepository
+        private PostAttachmentRepositoryInterface $attachmentRepository,
+        private UserRepositoryInterface $userRepository
     ) {
     }
 
@@ -34,16 +38,24 @@ final readonly class ListPostAttachmentsByPostQueryHandler
         $attachments = $this->attachmentRepository->findByPostId($query->postId);
 
         return array_map(
-            fn($attachment) => new PostAttachmentDTO(
-                id: $attachment->getId(),
-                postId: $attachment->getPostId(),
-                authorId: $attachment->getAuthorId(),
-                originalFilename: $attachment->getOriginalFilename(),
-                storedFilename: $attachment->getStoredFilename(),
-                mimeType: $attachment->getMimeType(),
-                size: $attachment->getSize(),
-                uploadedAt: $attachment->getUploadedAt()
-            ),
+            function ($attachment) {
+                $author = $this->userRepository->findById($attachment->getAuthorId());
+
+                if ($author === null) {
+                    throw UserNotFoundException::withId($attachment->getAuthorId());
+                }
+
+                return new PostAttachmentDTO(
+                    id: $attachment->getId(),
+                    postId: $attachment->getPostId(),
+                    author: new UserInlineDTO($author->getId(), $author->getUsername()),
+                    originalFilename: $attachment->getOriginalFilename(),
+                    storedFilename: $attachment->getStoredFilename(),
+                    mimeType: $attachment->getMimeType(),
+                    size: $attachment->getSize(),
+                    uploadedAt: $attachment->getUploadedAt()
+                );
+            },
             $attachments
         );
     }

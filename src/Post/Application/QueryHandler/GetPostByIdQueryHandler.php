@@ -10,6 +10,9 @@ use App\Post\Application\Query\GetPostByIdQuery;
 use App\Post\Domain\Exception\PostNotFoundException;
 use App\Post\Domain\Repository\PostAttachmentRepositoryInterface;
 use App\Post\Domain\Repository\PostRepositoryInterface;
+use App\User\Application\DTO\UserInlineDTO;
+use App\User\Domain\Exception\UserNotFoundException;
+use App\User\Domain\Repository\UserRepositoryInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -17,7 +20,8 @@ final readonly class GetPostByIdQueryHandler
 {
     public function __construct(
         private PostRepositoryInterface $postRepository,
-        private PostAttachmentRepositoryInterface $attachmentRepository
+        private PostAttachmentRepositoryInterface $attachmentRepository,
+        private UserRepositoryInterface $userRepository
     ) {
     }
 
@@ -29,25 +33,41 @@ final readonly class GetPostByIdQueryHandler
             throw PostNotFoundException::withId($query->id);
         }
 
+        $author = $this->userRepository->findById($post->getAuthorId());
+
+        if ($author === null) {
+            throw UserNotFoundException::withId($post->getAuthorId());
+        }
+
+        $authorInline = new UserInlineDTO($author->getId(), $author->getUsername());
+
         $attachments = $this->attachmentRepository->findByPostId($post->getId());
         $attachmentDTOs = array_map(
-            fn($attachment) => new PostAttachmentDTO(
-                id: $attachment->getId(),
-                postId: $attachment->getPostId(),
-                authorId: $attachment->getAuthorId(),
-                originalFilename: $attachment->getOriginalFilename(),
-                storedFilename: $attachment->getStoredFilename(),
-                mimeType: $attachment->getMimeType(),
-                size: $attachment->getSize(),
-                uploadedAt: $attachment->getUploadedAt()
-            ),
+            function ($attachment) {
+                $attachmentAuthor = $this->userRepository->findById($attachment->getAuthorId());
+
+                if ($attachmentAuthor === null) {
+                    throw UserNotFoundException::withId($attachment->getAuthorId());
+                }
+
+                return new PostAttachmentDTO(
+                    id: $attachment->getId(),
+                    postId: $attachment->getPostId(),
+                    author: new UserInlineDTO($attachmentAuthor->getId(), $attachmentAuthor->getUsername()),
+                    originalFilename: $attachment->getOriginalFilename(),
+                    storedFilename: $attachment->getStoredFilename(),
+                    mimeType: $attachment->getMimeType(),
+                    size: $attachment->getSize(),
+                    uploadedAt: $attachment->getUploadedAt()
+                );
+            },
             $attachments
         );
 
         return new PostDTO(
             id: $post->getId(),
             circleId: $post->getCircleId(),
-            authorId: $post->getAuthorId(),
+            author: $authorInline,
             title: $post->getTitle(),
             content: $post->getContent(),
             aiSummaryEnabled: $post->isAiSummaryEnabled(),

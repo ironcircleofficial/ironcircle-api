@@ -8,13 +8,17 @@ use App\Admin\Application\DTO\AdminCircleListDTO;
 use App\Admin\Application\Query\ListAllCirclesQuery;
 use App\Circle\Application\DTO\CircleDTO;
 use App\Circle\Domain\Repository\CircleRepositoryInterface;
+use App\User\Application\DTO\UserInlineDTO;
+use App\User\Domain\Exception\UserNotFoundException;
+use App\User\Domain\Repository\UserRepositoryInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
 final readonly class ListAllCirclesQueryHandler
 {
     public function __construct(
-        private CircleRepositoryInterface $circleRepository
+        private CircleRepositoryInterface $circleRepository,
+        private UserRepositoryInterface $userRepository
     ) {
     }
 
@@ -24,17 +28,25 @@ final readonly class ListAllCirclesQueryHandler
         $total = $this->circleRepository->count();
 
         $circleDTOs = array_map(
-            fn($circle) => new CircleDTO(
-                id: $circle->getId(),
-                name: $circle->getName(),
-                slug: $circle->getSlug(),
-                description: $circle->getDescription(),
-                visibility: $circle->getVisibility(),
-                creatorId: $circle->getCreatorId(),
-                moderatorIds: $circle->getModeratorIds(),
-                createdAt: $circle->getCreatedAt(),
-                updatedAt: $circle->getUpdatedAt()
-            ),
+            function ($circle) {
+                $creator = $this->userRepository->findById($circle->getCreatorId());
+
+                if ($creator === null) {
+                    throw UserNotFoundException::withId($circle->getCreatorId());
+                }
+
+                return new CircleDTO(
+                    id: $circle->getId(),
+                    name: $circle->getName(),
+                    slug: $circle->getSlug(),
+                    description: $circle->getDescription(),
+                    visibility: $circle->getVisibility(),
+                    creator: new UserInlineDTO($creator->getId(), $creator->getUsername()),
+                    moderatorIds: $circle->getModeratorIds(),
+                    createdAt: $circle->getCreatedAt(),
+                    updatedAt: $circle->getUpdatedAt()
+                );
+            },
             $circles
         );
 

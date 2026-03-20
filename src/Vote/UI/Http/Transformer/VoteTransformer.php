@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Vote\UI\Http\Transformer;
 
+use App\User\UI\Http\Transformer\UserInlineTransformer;
 use App\Vote\Application\DTO\VoteDTO;
 use League\Fractal\TransformerAbstract;
 
@@ -15,12 +16,12 @@ final class VoteTransformer extends TransformerAbstract
     public function transform(VoteDTO $vote): array
     {
         return [
-            'id' => $vote->id,
-            'userId' => $vote->userId,
+            'id'         => $vote->id,
+            'user'       => (new UserInlineTransformer())->transform($vote->user),
             'targetType' => $vote->targetType,
-            'targetId' => $vote->targetId,
-            'value' => $vote->value,
-            'createdAt' => $vote->createdAt->format(\DateTimeInterface::ATOM),
+            'targetId'   => $vote->targetId,
+            'value'      => $vote->value,
+            'createdAt'  => $vote->createdAt->format(\DateTimeInterface::ATOM),
         ];
     }
 }

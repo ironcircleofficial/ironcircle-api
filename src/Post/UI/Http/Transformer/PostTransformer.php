@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Post\UI\Http\Transformer;
 
 use App\Post\Application\DTO\PostDTO;
+use App\User\UI\Http\Transformer\UserInlineTransformer;
 use League\Fractal\Resource\Collection;
 use League\Fractal\TransformerAbstract;
 
@@ -18,14 +19,14 @@ final class PostTransformer extends TransformerAbstract
     public function transform(PostDTO $post): array
     {
         return [
-            'id' => $post->id,
-            'circleId' => $post->circleId,
-            'authorId' => $post->authorId,
-            'title' => $post->title,
-            'content' => $post->content,
+            'id'               => $post->id,
+            'circleId'         => $post->circleId,
+            'author'           => (new UserInlineTransformer())->transform($post->author),
+            'title'            => $post->title,
+            'content'          => $post->content,
             'aiSummaryEnabled' => $post->aiSummaryEnabled,
-            'createdAt' => $post->createdAt->format(\DateTimeInterface::ATOM),
-            'updatedAt' => $post->updatedAt->format(\DateTimeInterface::ATOM),
+            'createdAt'        => $post->createdAt->format(\DateTimeInterface::ATOM),
+            'updatedAt'        => $post->updatedAt->format(\DateTimeInterface::ATOM),
         ];
     }
 
