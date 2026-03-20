@@ -12,6 +12,12 @@ interface UserRepositoryInterface
 
     public function findById(string $id): ?User;
 
+    /**
+     * @param  array<string> $ids
+     * @return array<string, User>  keyed by User::getId()
+     */
+    public function findByIds(array $ids): array;
+
     public function findByUsername(string $username): ?User;
 
     public function findByEmail(string $email): ?User;

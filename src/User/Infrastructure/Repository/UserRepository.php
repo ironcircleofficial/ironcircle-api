@@ -30,6 +30,26 @@ final class UserRepository implements UserRepositoryInterface
         return $this->repository->find($id);
     }
 
+    public function findByIds(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $users = $this->repository->createQueryBuilder()
+            ->field('id')->in($ids)
+            ->getQuery()
+            ->execute()
+            ->toArray();
+
+        $map = [];
+        foreach ($users as $user) {
+            $map[$user->getId()] = $user;
+        }
+
+        return $map;
+    }
+
     public function findByUsername(string $username): ?User
     {
         return $this->repository->findOneBy(['username' => $username]);
